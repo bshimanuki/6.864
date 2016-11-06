@@ -1,0 +1,13 @@
+*.pyc
+
+*.pdf
+
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.pre
+*.pyc
+*.log
+*.synctex.gz
+.*.sw?
