@@ -3,7 +3,7 @@ import requests
 import pickle
 
 """
-Scrapes bible translations from www.biblestudytools.com
+Scrapes bible translations from www.biblestudytools.com. Functions store information in cache folder.
 """
 
 # Sample URLs for testing
@@ -26,8 +26,8 @@ def get_child_from_parent(parent_url):
     """
 
     def get_hyperlink_content(a):
-        url = a['href']
-        title = a.string.strip()
+        url = unicode(a['href'])
+        title = unicode(a.string.strip())
         return (title, url)
 
     response = requests.get(parent_url, headers=headers)
@@ -52,8 +52,8 @@ def get_book_info():
 
     def get_hyperlink_content(a):
         # Slightly different than parallel get_hyperlink_content function above.
-        url = a['href']
-        title = a.h4.string
+        url = unicode(a['href'])
+        title = unicode(a.h4.string)
         return (title, url)
 
     book_contents = map(get_hyperlink_content, hyperlinks)
@@ -135,16 +135,65 @@ def download_all_books():
     :return: None
     """
     book_info = get_book_info()
-    out = dict()
     for book_title, book_url in book_info.iteritems():
         print('{0} processing'.format(book_title))
         book_output = get_book_output(book_url)
-        pickle.dump(book_output, open( "cache/{0}.pickle".format(book_title), "wb" ) )
+        pickle.dump(book_output, open( "cache/by_book/{0}.pickle".format(book_title), "wb" ) )
+
+def download_some_books(required_book_titles):
+    """
+    Downloads just the subsets of the books you want.
+    :param required_book_titles:
+    :return:
+    """
+    book_info = get_book_info()
+    for book_title, book_url in book_info.iteritems():
+        if book_title in required_book_titles:
+            print('{0} processing'.format(book_title))
+            book_output = get_book_output(book_url)
+            pickle.dump(book_output, open( "cache/by_book/{0}.pickle".format(book_title), "wb" ) )
+
+def get_translation_versions_of_book(book_output):
+    """
+    Get all the versions of a book in the bible
+    :param book_output:
+    :return:
+    """
+    safe_translation_versions = set()
+    all_translation_versions = set()
+    for chapter_output in book_output.itervalues():
+        for verse_output in chapter_output.itervalues():
+            safe_translation_versions &= set(verse_output.keys())
+            all_translation_versions |= set(verse_output.keys())
+    return (safe_translation_versions, all_translation_versions)
+
+def download_translation_versions():
+    book_titles = pickle.load(open('cache/book_titles.pickle', 'rb'))
+    book_to_stv = dict()
+    book_to_atv = dict()
+    for book_title in book_titles:
+        book_output = pickle.load(open("cache/by_book/{0}.pickle".format(book_title), "rb"))
+        (stv, atv) = get_translation_versions_of_book(book_output)
+        book_to_stv[book_title] = stv
+        book_to_atv[book_title] = atv
+    safe_translation_versions = set.intersection(*book_to_atv.values())
+    # safe translation versions are guaranteed to be found at least in every book.
+    all_translation_versions = set.union(*book_to_atv.values())
+    # all translation versions are all the versions we encounter.
+    pickle.dump(safe_translation_versions, open("cache/safe_translation_versions.pickle", "wb"))
+    pickle.dump(all_translation_versions, open("cache/all_translation_versions.pickle", "wb"))
+
+def download_book_titles():
+    book_info = get_book_info()
+    book_titles = set(book_info.keys())
+    pickle.dump(book_titles, open("cache/book_titles.pickle", "wb"))
 
 # genesis_1 = get_chapter_output('http://www.biblestudytools.com/compare-translations/genesis/1/')
 # pickle.dump(genesis_1, open( "cache/genesis_1.pickle", "wb" ) )
 
 # genesis = get_book_output('http://www.biblestudytools.com/compare-translations/genesis/')
-# pickle.dump(genesis, open( "cache/genesis.pickle", "wb" ) )
+# pickle.dump(genesis, open( "cache/Genesis.pickle", "wb" ) )
 
 # download_all_books()
+
+# TODO: Deal with jankiness of cached data: verse and chapter numbers are strings
