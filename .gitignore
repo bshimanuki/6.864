@@ -13,3 +13,6 @@
 .*.sw?
 
 *~
+
+# Avoid tracking files related to PyCharm
+.idea/*
