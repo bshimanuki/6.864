@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 batch_size = 10
 lstm_size = 10
@@ -6,7 +7,7 @@ max_steps = 100
 num_features = 50
 latent_dim = 2 * lstm_size
 
-eos_matrix = tf.constant(np.zeros((batch_size, 1, num_features)))
+eos_matrix = tf.constant(np.zeros((batch_size, 1, num_features)), dtype=tf.float32)
 
 # Placeholder for the inputs in a given iteration
 words = tf.placeholder(tf.float32, [batch_size, max_steps, num_features])
@@ -15,10 +16,11 @@ eos_plus_words = tf.concat(1, [eos_matrix, words])
 lens_plus_one = tf.add(lens, 1)
 
 # Construct LSTM
-encoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
+with tf.variable_scope('encoder'):
+    encoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
 
-# Get output and last hidden state
-_, encoder_state = tf.nn.dynamic_rnn(encoder, words, sequence_length=lens, dtype=tf.float32)
+    # Get output and last hidden state
+    _, encoder_state = tf.nn.dynamic_rnn(encoder, words, sequence_length=lens, dtype=tf.float32)
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.0001)
@@ -46,7 +48,8 @@ std_encoder = tf.exp(0.5 * logvar_encoder)
 z = mu_encoder + tf.mul(std_encoder, epsilon)
 
 # Decoder
-decoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
+with tf.variable_scope('decoder'):
+    decoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
 
-# Get output and last hidden state
-outputs, _ = tf.nn.dynamic_rnn(encoder, eos_plus_words, sequence_length=lens_plus_one, dtype=tf.float32)
+    # Get output and last hidden state
+    outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens_plus_one, dtype=tf.float32)
