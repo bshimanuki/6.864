@@ -1,14 +1,12 @@
-#/bin/python
-
 import nltk
-from gensim.models import Word2Vec
+from gensim.models.word2vec import Word2Vec
 
 WV_SIZE = 50
-word2vec = Word2Vec(
-		map(lambda s:map(unicode.lower, s),
-			nltk.corpus.brown.sents() +
-			nltk.corpus.gutenberg.sents('bible-kjv.txt')),
-		size=WV_SIZE)
+sents = nltk.corpus.brown.sents() + \
+      nltk.corpus.gutenberg.sents('bible-kjv.txt')
+sents = [[w.lower() for w in s] for s in sents]
+word2vec = Word2Vec(sents,
+        size=WV_SIZE)
 
 # examples
 print(word2vec['university'])
