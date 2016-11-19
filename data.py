@@ -49,12 +49,10 @@ def np_from_sentences(sentences):
 
 wd = 50
 try:
-    with open(OUTPUT + '/word2vec.pickle', 'rb') as f:
-        word2vec = pickle.load(f)
+    word2vec = Word2Vec.load(OUTPUT + '/word2vec.pickle')
 except FileNotFoundError:
     word2vec = Word2Vec(process_bible(),
             size=wd)
     word2vec.normalize()
-    with open(OUTPUT + '/word2vec.pickle', 'wb') as f:
-        pickle.dump(word2vec, f)
+    word2vec.save(OUTPUT + '/word2vec.pickle')
 

@@ -23,10 +23,18 @@ class Word2Vec(gensim.models.word2vec.Word2Vec):
         # log because softmax will recover the frequency proportions
         self.syn0 *= np.log(counts)
 
-    def loss(self, vector, word):
-        dist = tf.matmul(self.syn0, tf.reshape(vector, (-1,1)))
+    # Calculate loss given word vectors and target words.
+    # vectors is an array or tensor with size (n,d) of n word vectors.
+    # words is a list of n words to compute the loss against.
+    # Returns a tensor with size (n,).
+    def loss(self, vectors, words):
+        dist = tf.matmul(self.syn0, vectors, transpose_b=True)
         dist = tf.transpose(dist)
-        return tf.nn.sparse_softmax_cross_entropy_with_logits(dist, [self.vocab[word].index])
+        words = [self.vocab[word].index
+                if word in self.vocab
+                else self.vocab[self.null_word].index
+                for word in words]
+        return tf.nn.sparse_softmax_cross_entropy_with_logits(dist, words)
 
 # corpus = [
         # nltk.corpus.brown.sents(),
