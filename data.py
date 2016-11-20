@@ -9,15 +9,20 @@ import numpy as np
 from word2vec import Word2Vec
 
 OUTPUT = 'output'
+BOS = '<BOS>'
+EOS = '<EOS>'
 
 bible_path = 'data/bible/cache/by_book'
 bible_books = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Songs', 'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation']
 
-def process_sentence(sentence):
+def process_sentence(sentence, eos=False):
     sentence = re.sub(r'(\W+)', r' \1 ', sentence)
-    return [w.lower() for w in sentence.split()]
+    sentence = [w.lower() for w in sentence.split()]
+    if eos:
+        sentence = [BOS] + sentence + [EOS]
+    return sentence
 
-def process_book(name):
+def process_book(name, eos=False):
     sents = []
     with open('%s/%s.pickle' % (bible_path, name), 'rb') as f:
         book = pickle.load(f)
@@ -25,12 +30,12 @@ def process_book(name):
             for _, verse in sorted(chapter.items()):
                 for _, trans in sorted(verse.items()):
                     if trans is not None:
-                        sents.append(process_sentence(trans))
+                        sents.append(process_sentence(trans, eos=eos))
     return sents
 
-def process_bible():
+def process_bible(eos=False):
     def shuffled_book(book):
-        text = process_book(book)
+        text = process_book(book, eos=eos)
         random.shuffle(text)
         return text
     class Iterator:
@@ -63,7 +68,7 @@ try:
     print("Found and loaded word embedding.")
 except FileNotFoundError:
     print("Generating word embeddings from scratch.")
-    word2vec = Word2Vec(process_bible(),
+    word2vec = Word2Vec(process_bible(eos=True),
             size=wd)
     word2vec.normalize()
     word2vec.save(OUTPUT + '/word2vec.pickle')
