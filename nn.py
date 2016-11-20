@@ -9,8 +9,8 @@ latent_dim = 2 * lstm_size
 embedding_np = data.get_embedding()
 num_words, num_features = embedding_np.shape
 
-# TODO: Check that this is a trainable parameter
-eos_matrix = tf.Variable(np.zeros((batch_size, 1, num_features)), dtype=tf.float32)
+eos_embedding = data.get_eos_embedding()
+eos_matrix = tf.reshape(tf.tile(tf.constant(eos_embedding, dtype=tf.float32), [batch_size]), [batch_size, 1, num_features])
 
 # Placeholder for the inputs in a given iteration
 words = tf.placeholder(tf.int32, [batch_size, None])
@@ -26,7 +26,8 @@ embedding_placeholder = tf.placeholder(tf.float32, [num_words, num_features])
 embedding_init = embedding_matrix.assign(embedding_placeholder)
 
 word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
-eos_plus_words = tf.concat(1, [eos_matrix, word_vectors])
+# Reminder: Do not add eos to the end of words, because words is padded!
+eos_plus_words = tf.reverse(tf.slice(tf.reverse(tf.concat(1, [eos_matrix, word_vectors]), [False, True, False]), [0, 1, 0], [-1, -1, -1]), [False, True, False])
 
 with tf.variable_scope('encoder'):
     encoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
@@ -67,7 +68,6 @@ with tf.variable_scope('decoder'):
     outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens_plus_one, dtype=tf.float32)
 
 # Compute probabilities
-# TODO: outputs contains eos, but one_hot doesn't include eos
 mask = tf.sign(tf.reduce_max(tf.abs(outputs), reduction_indices=2))
 outputs_reshaped = tf.reshape(outputs, [-1, num_features])
 raw_probs = tf.matmul(outputs_reshaped, embedding_matrix, transpose_b=True)
@@ -86,7 +86,7 @@ train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 with open('test_data.txt', 'r') as f:
     sentences = f.readlines()
 
-sentences, lengths = data.word_indices(sentences)
+sentences, lengths = data.word_indices(sentences, eos=True)
 
 with tf.Session() as sess:
     sess.run(tf.initialize_all_variables())

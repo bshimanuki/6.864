@@ -43,6 +43,7 @@ def process_bible(eos=False):
             return itertools.chain(*map(shuffled_book, bible_books))
     return Iterator()
 
+"""
 def one_hot(sentences):
     # TODO: Handle punctuation
     sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
@@ -50,17 +51,26 @@ def one_hot(sentences):
     max_len = max(lens)
     v = np.stack([word2vec.one_hot(sent, sent_length=max_len) for sent in sents], axis=0)
     return v, lens
+"""
 
-def word_indices(sentences):
+def word_indices(sentences, eos=False):
     # TODO: Handle punctuation
-    sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
-    lens = np.array([len(sent) for sent in sents])
-    max_len = max(lens)
+    if eos:
+        sents = [[word.lower() for word in sent.rstrip().split(" ")] + ['<EOS>'] for sent in sentences]
+        lens = np.array([len(sent) - 1 for sent in sents])
+        max_len = max(lens) + 1
+    else:
+        sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
+        lens = np.array([len(sent) for sent in sents])
+        max_len = max(lens)
     v = np.stack([word2vec.words_to_indices(sent, sent_length=max_len) for sent in sents], axis=0)
     return v, lens
 
 def get_embedding():
     return word2vec.embedding_matrix()
+
+def get_eos_embedding():
+    return get_embedding()[word2vec.words_to_indices(['<EOS>'])[0]]
 
 wd = 50
 try:
