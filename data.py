@@ -38,7 +38,7 @@ def process_bible():
             return itertools.chain(*map(shuffled_book, bible_books))
     return Iterator()
 
-def np_from_sentences(sentences):
+def one_hot(sentences):
     # TODO: Handle punctuation
     sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
     lens = np.array([len(sent) for sent in sents])
@@ -46,11 +46,16 @@ def np_from_sentences(sentences):
     v = np.stack([word2vec.one_hot(sent, sent_length=max_len) for sent in sents], axis=0)
     return v, lens
 
+def word_indices(sentences):
+    # TODO: Handle punctuation
+    sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
+    lens = np.array([len(sent) for sent in sents])
+    max_len = max(lens)
+    v = np.stack([word2vec.words_to_indices(sent, sent_length=max_len) for sent in sents], axis=0)
+    return v, lens
+
 def get_embedding():
     return word2vec.embedding_matrix()
-
-def num_features():
-    return wd
 
 wd = 50
 try:

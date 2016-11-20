@@ -1,26 +1,37 @@
 import tensorflow as tf
 import numpy as np
+import data
 
 batch_size = 10
 lstm_size = 10
 max_steps = 100
-num_features = 50
 latent_dim = 2 * lstm_size
+embedding_np = data.get_embedding()
+num_words, num_features = embedding_np.shape
 
+# TODO: choose eos_matrix in a smart way
 eos_matrix = tf.constant(np.zeros((batch_size, 1, num_features)), dtype=tf.float32)
 
 # Placeholder for the inputs in a given iteration
-words = tf.placeholder(tf.float32, [batch_size, max_steps, num_features])
+words = tf.placeholder(tf.int32, [batch_size, None])
 lens = tf.placeholder(tf.int32, [batch_size])
-eos_plus_words = tf.concat(1, [eos_matrix, words])
+
 lens_plus_one = tf.add(lens, 1)
 
 # Construct LSTM
+embedding_matrix = tf.Variable(tf.constant(0.0, shape=[num_words, num_features]),
+                        trainable=False, name="embedding_matrix")
+embedding_placeholder = tf.placeholder(tf.float32, [num_words, num_features])
+embedding_init = embedding_matrix.assign(embedding_placeholder)
+
+word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
+eos_plus_words = tf.concat(1, [eos_matrix, word_vectors])
+
 with tf.variable_scope('encoder'):
     encoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
 
     # Get output and last hidden state
-    _, encoder_state = tf.nn.dynamic_rnn(encoder, words, sequence_length=lens, dtype=tf.float32)
+    _, encoder_state = tf.nn.dynamic_rnn(encoder, word_vectors, sequence_length=lens, dtype=tf.float32)
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.0001)
@@ -53,3 +64,14 @@ with tf.variable_scope('decoder'):
 
     # Get output and last hidden state
     outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens_plus_one, dtype=tf.float32)
+
+with open('test_data.txt', 'r') as f:
+    sentences = f.readlines()
+
+sentences, lengths = data.word_indices(sentences)
+
+with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
+    out = sess.run(outputs, feed_dict={words:sentences, lens:lengths})
+    print(out)
