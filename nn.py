@@ -19,6 +19,7 @@ lens = tf.placeholder(tf.int32, [batch_size])
 lens_plus_one = tf.add(lens, 1)
 
 # Construct LSTM
+# TODO: Check that this is normalized
 embedding_matrix = tf.Variable(tf.constant(0.0, shape=[num_words, num_features]),
                         trainable=False, name="embedding_matrix")
 embedding_placeholder = tf.placeholder(tf.float32, [num_words, num_features])
@@ -26,7 +27,6 @@ embedding_init = embedding_matrix.assign(embedding_placeholder)
 
 word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
 eos_plus_words = tf.concat(1, [eos_matrix, word_vectors])
-#words_plus_eos = tf.concat(1, [word_vectors, eos_matrix])
 
 with tf.variable_scope('encoder'):
     encoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
@@ -68,19 +68,18 @@ with tf.variable_scope('decoder'):
 
 # Compute probabilities
 # TODO: outputs contains eos, but one_hot doesn't include eos
+mask = tf.sign(tf.reduce_max(tf.abs(outputs), reduction_indices=2))
 outputs_reshaped = tf.reshape(outputs, [-1, num_features])
 raw_probs = tf.matmul(outputs_reshaped, embedding_matrix, transpose_b=True)
 logits = tf.reshape(raw_probs, [batch_size, -1, num_words])
 log_probs = tf.nn.log_softmax(logits)
 one_hot = tf.one_hot(words, num_words)
-relevant_log_probs = tf.reduce_sum(tf.mul(log_probs, one_hot), 2)
+relevant_log_probs = tf.reduce_sum(tf.mul(log_probs, one_hot), reduction_indices=2)
+losses = tf.div(tf.mul(mask, relevant_log_probs), tf.reduce_sum(mask, reduction_indices=1))
+batch_losses = tf.reduce_sum(losses, reduction_indices=1)
 
-# Initialize loss to KLD
-loss = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(logvar_encoder), reduction_indices=1)
-# TODO: Check that using lens for indexing is valid
-for i in range(batch_size):
-    loss = loss - tf.reduce_sum(relevant_log_probs[i,:lens[i]])
-loss = loss / 2.0 # Normalization constant for mean
+KLD = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(logvar_encoder), reduction_indices=1)
+loss = tf.reduce_mean(KLD + batch_losses)
 train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
 # Execute some test code
