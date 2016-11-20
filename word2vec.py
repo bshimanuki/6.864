@@ -27,7 +27,10 @@ class Word2Vec(gensim.models.word2vec.Word2Vec):
             sent_length = len(words)
         ret = np.zeros((sent_length, self.syn0.shape[0]))
         for i, word in enumerate(words):
-            ret[i][self.vocab[word].index] = 1
+            if word in self.vocab:
+                ret[i][self.vocab[word].index] = 1
+            else:
+                ret[i][self.vocab[self.null_word].index] = 1
         return ret
 
     def embedding_matrix(self):
