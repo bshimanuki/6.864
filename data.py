@@ -10,7 +10,7 @@ from word2vec import Word2Vec
 
 OUTPUT = 'output'
 
-bible_path = 'data/bible/cache'
+bible_path = 'data/bible/cache/by_book'
 bible_books = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Songs', 'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation']
 
 def process_sentence(sentence):
@@ -40,17 +40,24 @@ def process_bible():
 
 def np_from_sentences(sentences):
     # TODO: Handle punctuation
-    v = [[word2vec[word.lower()] for word in sentence.rstrip().split(" ")] for sentence in sentences]
-    lens = np.array([len(sent) for sent in v])
-    out = np.zeros((len(lens), max(lens), wd))
-    for i, sent in enumerate(v):
-        out[i, :lens[i]] = np.array(sent)
-    return out, lens
+    sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
+    lens = np.array([len(sent) for sent in sents])
+    max_len = max(lens)
+    v = np.stack([word2vec.one_hot(sent, sent_length=max_len) for sent in sents], axis=0)
+    return v, lens
+
+def get_embedding():
+    return word2vec.embedding_matrix()
+
+def num_features():
+    return wd
 
 wd = 50
 try:
     word2vec = Word2Vec.load(OUTPUT + '/word2vec.pickle')
+    print("Found and loaded word embedding.")
 except FileNotFoundError:
+    print("Generating word embeddings from scratch.")
     word2vec = Word2Vec(process_bible(),
             size=wd)
     word2vec.normalize()
