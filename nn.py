@@ -1,14 +1,12 @@
 import tensorflow as tf
-import numpy as np
 import embedding
 import batch
 
 batch_size = 10
-lstm_size = 200 # TODO: allow lstm_size to be different from num_features
-max_steps = 100
-latent_dim = 2 * lstm_size
 embedding_np = embedding.get_embedding()
 num_words, num_features = embedding_np.shape
+lstm_size = num_features
+latent_dim = 2 * lstm_size
 
 eos_embedding = embedding.get_eos_embedding()
 eos_matrix = tf.reshape(tf.tile(tf.constant(
@@ -24,7 +22,6 @@ lens = tf.placeholder(tf.int32, [batch_size])
 lens_plus_one = tf.add(lens, 1)
 
 # Construct LSTM
-# TODO: Check that this is normalized
 embedding_matrix = tf.Variable(tf.constant(0.0, shape=[num_words, num_features]),
                         trainable=False, name="embedding_matrix")
 embedding_placeholder = tf.placeholder(tf.float32, [num_words, num_features])
