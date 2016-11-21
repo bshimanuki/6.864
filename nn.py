@@ -1,15 +1,16 @@
 import tensorflow as tf
 import numpy as np
-import data
+import embedding
+import batch
 
 batch_size = 10
 lstm_size = 50 # TODO: allow lstm_size to be different from num_features
 max_steps = 100
 latent_dim = 2 * lstm_size
-embedding_np = data.get_embedding()
+embedding_np = embedding.get_embedding()
 num_words, num_features = embedding_np.shape
 
-eos_embedding = data.get_eos_embedding()
+eos_embedding = embedding.get_eos_embedding()
 eos_matrix = tf.reshape(tf.tile(tf.constant(
     eos_embedding, dtype=tf.float32),
     [batch_size]),
@@ -91,15 +92,12 @@ KLD = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(l
 loss = tf.reduce_mean(KLD - batch_LL)
 train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
+b = batch.Single()
 # Execute some test code
-with open('test_data.txt', 'r') as f:
-    sentences = f.readlines()
-
-sentences, lengths = data.word_indices(sentences, eos=True)
-
 with tf.Session() as sess:
     sess.run(tf.initialize_all_variables())
     sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
-    for i in range(10):
+    for i in range(1000):
+        sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
         _, los = sess.run((train_step, loss), feed_dict={words:sentences, lens:lengths})
         print(los)
