@@ -14,6 +14,8 @@
 *.synctex.gz
 .*.sw?
 .lvimrc
+*.ckpt*
+checkpoint
 
 *~
 
