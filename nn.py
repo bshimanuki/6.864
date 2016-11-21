@@ -4,7 +4,7 @@ import embedding
 import batch
 
 batch_size = 10
-lstm_size = 50 # TODO: allow lstm_size to be different from num_features
+lstm_size = 200 # TODO: allow lstm_size to be different from num_features
 max_steps = 100
 latent_dim = 2 * lstm_size
 embedding_np = embedding.get_embedding()
@@ -85,7 +85,7 @@ unmasked_log_probs = tf.reduce_sum(tf.mul(
     log_probs, tf.one_hot(words, num_words)),
     reduction_indices=2)
 batch_LL = tf.reduce_sum(tf.div(
-    tf.mul(mask, unmasked_log_probs), tf.reduce_sum(mask, reduction_indices=1)),
+    tf.mul(mask, unmasked_log_probs), tf.expand_dims(tf.reduce_sum(mask, reduction_indices=1), 1)),
     reduction_indices=1)
 
 KLD = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(logvar_encoder), reduction_indices=1)
