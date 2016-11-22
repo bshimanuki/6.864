@@ -47,7 +47,7 @@ class Word2Vec(gensim.models.word2vec.Word2Vec):
     def embedding_matrix(self):
         return self.syn0
 
-    def get_vocab(self):
+    def index_to_word_map(self):
         out_dict = {}
         for word in self.vocab.keys():
             out_dict[self.vocab[word].index] = word

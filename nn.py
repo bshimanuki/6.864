@@ -6,8 +6,7 @@ import time
 import numpy as np
 
 batch_size = 20
-vocab = embedding.get_vocab()
-embedding_np = embedding.get_embedding()
+embedding_np = embedding.get_embedding_matrix()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
 latent_dim = 2 * lstm_size
@@ -142,10 +141,7 @@ def test():
             sentences, lengths = embedding.word_indices(bat, eos=True)
             _, output, los = sess.run((train_step, outputs, loss), feed_dict={words:sentences, lens:lengths})
         one_sentence = output[0]
-        word_probs = np.matmul(one_sentence, np.transpose(embedding_np))
-        num_words_sentence, num_words_vocab = word_probs.shape
-        word_sequence = [vocab[np.argmax(word_probs[i])] for i in range(num_words_sentence)]
-        word_sequence = ' '.join(word_sequence)
+        word_sequence = embedding.embedding_to_sentence(output[0])
         print(word_sequence)
 
 train()
