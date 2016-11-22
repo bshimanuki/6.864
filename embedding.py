@@ -74,6 +74,9 @@ def get_embedding():
 def get_eos_embedding():
     return get_embedding()[word2vec.words_to_indices(['<EOS>'])[0]]
 
+def get_vocab():
+    return word2vec.get_vocab()
+
 wd = 200
 try:
     word2vec = Word2Vec.load(OUTPUT + '/word2vec.pickle')

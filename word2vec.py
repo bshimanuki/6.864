@@ -47,6 +47,9 @@ class Word2Vec(gensim.models.word2vec.Word2Vec):
     def embedding_matrix(self):
         return self.syn0
 
+    def get_vocab(self):
+        return list(self.vocab.keys())
+
     # Calculate loss given word vectors and target words.
     # vectors is an array or tensor with size (n,d) of n word vectors.
     # words is a list of n words to compute the loss against.

@@ -1,12 +1,16 @@
 import tensorflow as tf
 import embedding
 import batch
+import os
+import numpy as np
 
 batch_size = 20
+vocab = embedding.get_vocab()
 embedding_np = embedding.get_embedding()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
 latent_dim = 2 * lstm_size
+ckpt_file = 'checkpoint.ckpt'
 
 eos_embedding = embedding.get_eos_embedding()
 eos_matrix = tf.reshape(tf.tile(tf.constant(
@@ -95,21 +99,32 @@ def train():
     b = batch.Single()
     # Execute some test code
     with tf.Session() as sess:
-        sess.run(tf.initialize_all_variables())
+        if os.path.isfile(ckpt_file):
+            print("Restoring saved parameters")
+            saver.restore(sess, ckpt_file)
+        else:
+            print("Initializing parameters")
+            sess.run(tf.initialize_all_variables())
         sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
-        for i in range(1000):
+        for i in range(10):
             sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
-            output, los = sess.run((outputs, loss), feed_dict={words:sentences, lens:lengths})
-            print(los)
-            print(len(output), len(output[0]), len(output[0][0]))
+            _, los = sess.run((train_step, loss), feed_dict={words:sentences, lens:lengths})
+            if i%100 == 0:
+                print("Step {0} Loss = {1}".format(i, los))
+                saver.save(sess, ckpt_file)
 
 def test():
+    b = batch.Single()
     with tf.Session() as sess:
-        saver.restore(sess, "checkpoint.ckpt")
-        # ckpt = tf.train.get_checkpoint_state(".", latest_filename="")
-        # print(ckpt)
-        # if ckpt and ckpt.model_checkpoint_path:
-        # else:
-        #     print("no")
+        saver.restore(sess, "checkpoint")
+        for i in range(1):
+            sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
+            _, output, los = sess.run((train_step, outputs, loss), feed_dict={words:sentences, lens:lengths})
+        one_sentence = output[0]
+        word_probs = np.matmul(one_sentence, np.transpose(embedding_np))
+        num_words_sentence, num_words_vocab = word_probs.shape
+        word_sequence = [vocab[np.argmax(word_probs[i], axis=0)] for i in range(num_words_sentence)]
+        word_sequence = ' '.join(word_sequence)
+        print (word_sequence)
 
 test()
