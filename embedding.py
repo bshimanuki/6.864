@@ -15,17 +15,19 @@ EOS = '<EOS>'
 bible_path = 'data/bible/cache/by_book'
 bible_books = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Songs', 'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation']
 
-def process_sentence(sentence, eos=False):
+def process_sentence(sentence, bos=False, eos=False):
     # separate punctuation from text
     sentence = sentence.lower()
     # sentence = re.sub(r"(n't\b|'s\b|\W+)", r' \1 ', sentence)
     # sentence = [w for w in sentence.split()]
     sentence = nltk.tokenize.word_tokenize(sentence)
     if eos:
-        sentence = [BOS] + sentence + [EOS]
+        sentence = sentence + [EOS]
+    if bos:
+        sentence = [BOS] + sentence
     return sentence
 
-def process_book(name, eos=False):
+def process_book(name, bos=False, eos=False):
     sents = []
     with open('%s/%s.pickle' % (bible_path, name), 'rb') as f:
         book = pickle.load(f)
@@ -33,12 +35,12 @@ def process_book(name, eos=False):
             for _, verse in sorted(chapter.items()):
                 for _, trans in sorted(verse.items()):
                     if trans is not None:
-                        sents.append(process_sentence(trans, eos=eos))
+                        sents.append(process_sentence(trans, bos=bos, eos=eos))
     return sents
 
-def process_bible(eos=False):
+def process_bible(bos=False, eos=False):
     def shuffled_book(book):
-        text = process_book(book, eos=eos)
+        text = process_book(book, bos=bos, eos=eos)
         random.shuffle(text)
         return text
     class Iterator:
@@ -58,11 +60,11 @@ def one_hot(sentences):
 def word_indices(sentences, eos=False):
     # TODO: Handle punctuation
     if eos:
-        sents = [[word.lower() for word in sent.rstrip().split(" ")] + ['<EOS>'] for sent in sentences]
+        sents = [process_sentence(sent, eos=True) for sent in sentences]
         lens = np.array([len(sent) - 1 for sent in sents])
         max_len = max(lens) + 1
     else:
-        sents = [[word.lower() for word in sent.rstrip().split(" ")] for sent in sentences]
+        sents = [process_sentence(sent) for sent in sentences]
         lens = np.array([len(sent) for sent in sents])
         max_len = max(lens)
     v = np.stack([word2vec.words_to_indices(sent, sent_length=max_len) for sent in sents], axis=0)
@@ -85,6 +87,6 @@ except FileNotFoundError:
     print("Generating word embeddings from scratch.")
     word2vec = Word2Vec(process_bible(eos=True),
             size=wd)
-    word2vec.normalize()
+    #word2vec.normalize()
     word2vec.save(OUTPUT + '/word2vec.pickle')
 
