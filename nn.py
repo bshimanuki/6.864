@@ -117,12 +117,13 @@ def train():
         sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
         summary_writer = tf.train.SummaryWriter(train_dir, sess.graph)
         start_time = time.time()
+        logging_iteration = 50
         for i in range(1, 200001):
             sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
-            if i%50 == 0:
+            if i%logging_iteration == 0:
                 _, los, summary_str = sess.run((train_step, loss, summary_op),
                         feed_dict={words:sentences, lens:lengths})
-                tpb = (time.time() - start_time) / batch_size
+                tpb = (time.time() - start_time) / logging_iteration
                 print("step {0}, loss = {1} ({2} sec/batch)".format(i, los, tpb))
                 summary_writer.add_summary(summary_str, global_step=i)
                 if i%1000 == 0:
