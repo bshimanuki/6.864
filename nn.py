@@ -106,25 +106,28 @@ def train():
             print("Initializing parameters")
             sess.run(tf.initialize_all_variables())
         sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
-        for i in range(10):
+        for i in range(1, 200001):
             sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
             _, los = sess.run((train_step, loss), feed_dict={words:sentences, lens:lengths})
             if i%100 == 0:
                 print("Step {0} Loss = {1}".format(i, los))
-                saver.save(sess, ckpt_file)
+                if i%1000 == 0:
+                    saver.save(sess, ckpt_file)
 
 def test():
     b = batch.Single()
     with tf.Session() as sess:
-        saver.restore(sess, "checkpoint")
+        saver.restore(sess, ckpt_file)
+        bat = b.next_batch(batch_size)
+        print(bat[0])
         for i in range(1):
-            sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
+            sentences, lengths = embedding.word_indices(bat, eos=True)
             _, output, los = sess.run((train_step, outputs, loss), feed_dict={words:sentences, lens:lengths})
         one_sentence = output[0]
         word_probs = np.matmul(one_sentence, np.transpose(embedding_np))
         num_words_sentence, num_words_vocab = word_probs.shape
         word_sequence = [vocab[np.argmax(word_probs[i], axis=0)] for i in range(num_words_sentence)]
         word_sequence = ' '.join(word_sequence)
-        print (word_sequence)
+        print(word_sequence)
 
 test()
