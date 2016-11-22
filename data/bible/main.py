@@ -6,6 +6,8 @@ import pickle
 Scrapes bible translations from www.biblestudytools.com. Functions store information in cache folder.
 """
 
+# TODO: Written for Python 2; tons of incompatibilities with Python 3
+
 # Sample URLs for testing
 verse_url_sample = 'http://www.biblestudytools.com/genesis/1-1-compare.html'
 chapter_url_sample = 'http://www.biblestudytools.com/compare-translations/genesis/1/'
