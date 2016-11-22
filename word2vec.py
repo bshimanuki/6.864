@@ -48,7 +48,10 @@ class Word2Vec(gensim.models.word2vec.Word2Vec):
         return self.syn0
 
     def get_vocab(self):
-        return list(self.vocab.keys())
+        out_dict = {}
+        for word in self.vocab.keys():
+            out_dict[self.vocab[word].index] = word
+        return out_dict
 
     # Calculate loss given word vectors and target words.
     # vectors is an array or tensor with size (n,d) of n word vectors.

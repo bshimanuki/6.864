@@ -126,7 +126,7 @@ def test():
         one_sentence = output[0]
         word_probs = np.matmul(one_sentence, np.transpose(embedding_np))
         num_words_sentence, num_words_vocab = word_probs.shape
-        word_sequence = [vocab[np.argmax(word_probs[i], axis=0)] for i in range(num_words_sentence)]
+        word_sequence = [vocab[np.argmax(word_probs[i])] for i in range(num_words_sentence)]
         word_sequence = ' '.join(word_sequence)
         print(word_sequence)
 
