@@ -2,7 +2,7 @@ import tensorflow as tf
 import embedding
 import batch
 
-batch_size = 10
+batch_size = 20
 embedding_np = embedding.get_embedding()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
@@ -89,12 +89,27 @@ KLD = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(l
 loss = tf.reduce_mean(KLD - batch_LL)
 train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
-b = batch.Single()
-# Execute some test code
-with tf.Session() as sess:
-    sess.run(tf.initialize_all_variables())
-    sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
-    for i in range(1000):
-        sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
-        _, los = sess.run((train_step, loss), feed_dict={words:sentences, lens:lengths})
-        print(los)
+saver = tf.train.Saver()
+
+def train():
+    b = batch.Single()
+    # Execute some test code
+    with tf.Session() as sess:
+        sess.run(tf.initialize_all_variables())
+        sess.run(embedding_init, feed_dict={embedding_placeholder:embedding_np})
+        for i in range(1000):
+            sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
+            output, los = sess.run((outputs, loss), feed_dict={words:sentences, lens:lengths})
+            print(los)
+            print(len(output), len(output[0]), len(output[0][0]))
+
+def test():
+    with tf.Session() as sess:
+        saver.restore(sess, "checkpoint.ckpt")
+        # ckpt = tf.train.get_checkpoint_state(".", latest_filename="")
+        # print(ckpt)
+        # if ckpt and ckpt.model_checkpoint_path:
+        # else:
+        #     print("no")
+
+test()
