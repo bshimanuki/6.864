@@ -10,7 +10,7 @@ embedding_np = embedding.get_embedding()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
 latent_dim = 2 * lstm_size
-ckpt_file = 'checkpoint.ckpt'
+ckpt_file = 'temp.ckpt'
 
 eos_embedding = embedding.get_eos_embedding()
 eos_matrix = tf.reshape(tf.tile(tf.constant(
@@ -85,12 +85,12 @@ log_probs = tf.nn.log_softmax(logits)
 unmasked_log_probs = tf.reduce_sum(tf.mul(
     log_probs, tf.one_hot(words, num_words)),
     reduction_indices=2)
-batch_LL = tf.reduce_sum(tf.div(
-    tf.mul(mask, unmasked_log_probs), tf.expand_dims(tf.reduce_sum(mask, reduction_indices=1), 1)),
-    reduction_indices=1)
+batch_LL = tf.div(tf.reduce_sum(
+    tf.mul(mask, unmasked_log_probs), reduction_indices=1), tf.cast(lens_plus_one, tf.float32))
 
 KLD = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(logvar_encoder), reduction_indices=1)
-loss = tf.reduce_mean(KLD - batch_LL)
+KLD_word = tf.div(KLD, tf.cast(lens_plus_one, tf.float32))
+loss = tf.reduce_mean(KLD_word - batch_LL)
 train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
 saver = tf.train.Saver()
@@ -109,7 +109,7 @@ def train():
         for i in range(1, 200001):
             sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
             _, los = sess.run((train_step, loss), feed_dict={words:sentences, lens:lengths})
-            if i%100 == 0:
+            if i%50 == 0:
                 print("Step {0} Loss = {1}".format(i, los))
                 if i%1000 == 0:
                     saver.save(sess, ckpt_file)
@@ -130,4 +130,4 @@ def test():
         word_sequence = ' '.join(word_sequence)
         print(word_sequence)
 
-test()
+train()
