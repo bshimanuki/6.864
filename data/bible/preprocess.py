@@ -87,7 +87,9 @@ if __name__ == '__main__':
         (WNT) Only contains the New Testament.
         (LXX) Only contains the Old Testament.
 
-    Versions both with and without the Apocrypha
+    The following translations of the bible contain the Apocrypha, and contain a corresponding version without the
+    Apocrypha. (For example, CEBA, the Common English Bible with Apocrypha, has a corresponding version CEB, *without*
+    the Apocrypha.) We remove all those versions with the apocrypha.
         (CEBA) (GNTA) (KJVA) (NRSA) (RSVA) (TMBA)
     """
     # remove_unused_translations(unused_translations=['(OJB)', '(TYN)', '(SBLG)']):
