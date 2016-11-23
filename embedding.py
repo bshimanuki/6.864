@@ -15,11 +15,11 @@ EOS = '<EOS>'
 bible_path = 'data/bible/cache/by_book'
 bible_books = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Songs', 'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation']
 
+trans = str.maketrans('‘’“”{}', '\'\'""[]')
 def process_sentence(sentence, bos=False, eos=False):
     # separate punctuation from text
-    sentence = sentence.lower()
-    # sentence = re.sub(r"(n't\b|'s\b|\W+)", r' \1 ', sentence)
-    # sentence = [w for w in sentence.split()]
+    sentence = sentence.lower().translate(trans)
+    sentence = re.sub(r"[–—]+", r'--', sentence)
     sentence = nltk.tokenize.word_tokenize(sentence)
     if eos:
         sentence = sentence + [EOS]
