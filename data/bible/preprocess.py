@@ -12,28 +12,37 @@ import nltk
 
 from book_titles import book_titles
 
+"""Static variables for tokenizing sentences."""
 trans = str.maketrans('{}‘’“”\x0a', '[]\'\'"" ')
+sent_tokenizer = nltk.data.load('tokenizers/punkt/{0}.pickle'.format('english'))
+word_tokenizer = nltk.tokenize.treebank.TreebankWordTokenizer()
+# convert starting single quote to `
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'(^|[ (\[{<])\'(?=\w)'), r'\1 ` '))
+# space out starting single quotes
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'(?<!`)`(?!`)'), r' ` '))
+# remove [+ notes]
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'\[\+.*?\]'), r''))
+# remove <note:>
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'<note:.*?>'), r''))
+# remove {Gr. notes}
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'{Gr\..*?}'), r''))
+# remove * (markdown bold)
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'\*'), r''))
+# remove <em> tags
+word_tokenizer.STARTING_QUOTES.append((re.compile(r'</?em>'), r''))
+# convert dashes
+word_tokenizer.PUNCTUATION.append((re.compile(r'[–—]+'), r'--'))
 def parse_sentence(sentence):
-    # remove [+ notes]
-    sentence = re.sub(r'\[\+.*?\]', r'', sentence)
-    # remove <note:>
-    sentence = re.sub(r'<note:.*?>', r'', sentence)
-    # remove {Gr. notes}
-    sentence = re.sub(r'{Gr\..*?}', r'', sentence)
-    # remove * (markdown bold)
-    sentence = re.sub(r'\*', r'', sentence)
-    # remove <em> tags
-    sentence = re.sub(r'</?em>', r'', sentence)
     # convert to canonical symbols
     sentence = sentence.translate(trans)
-    sentence = re.sub(r'[–—]+', r'--', sentence)
     # remove accents
     sentence = ''.join([c for c in unicodedata.normalize('NFKD', sentence)
         if not unicodedata.combining(c)])
     # make lowercase
     sentence = sentence.lower()
     # split sentence into tokens
-    sentence = nltk.tokenize.word_tokenize(sentence)
+    sentence = [token for sent in sent_tokenizer.tokenize(sentence)
+            for token in word_tokenizer.tokenize(sent)]
     return ' '.join(sentence)
 
 def convert_book(book_title, remove=[]):
@@ -77,6 +86,9 @@ if __name__ == '__main__':
         (HNV) Has some weird names for words (e.g. in Genesis, earth is referred to as Eretz)
         (WNT) Only contains the New Testament.
         (LXX) Only contains the Old Testament.
+
+    Versions both with and without the Apocrypha
+        (CEBA) (GNTA) (KJVA) (NRSA) (RSVA) (TMBA)
     """
     # remove_unused_translations(unused_translations=['(OJB)', '(TYN)', '(SBLG)']):
-    convert_bible(remove=['(OJB)', '(TYN)', '(SBLG)', '(HNV)', '(WNT)', '(LXX)'])
+    convert_bible(remove=['(OJB)', '(TYN)', '(SBLG)', '(HNV)', '(WNT)', '(LXX)', '(CEBA)', '(GNTA)', '(KJVA)', '(NRSA)', '(RSVA)', '(TMBA)'])
