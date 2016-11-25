@@ -10,7 +10,8 @@ import unicodedata
 
 import nltk
 
-from book_titles import book_titles
+from . import get_path
+from . import book_titles
 
 """Static variables for tokenizing sentences."""
 trans = str.maketrans('{}‘’“”\x0a', '[]\'\'"" ')
@@ -47,7 +48,7 @@ def parse_sentence(sentence):
 
 def convert_book(book_title, remove=[]):
     remove = set(map(''.join, map(lambda x:filter(str.isalpha, x), remove)))
-    with open('cache/by_book/%s.pickle' % book_title, 'rb') as f:
+    with open(get_path('cache/by_book/%s.pickle' % book_title), 'rb') as f:
         book = pickle.load(f)
     output = {}
     for chapter, verses in sorted(book.items()):
@@ -67,7 +68,7 @@ def convert_book(book_title, remove=[]):
 def convert_bible(remove=[]):
     for book_title in book_titles:
         book = convert_book(book_title, remove=remove)
-        pickle.dump(book, open("cache/by_book_filtered/{0}.pickle".format(book_title), "wb"))
+        pickle.dump(book, open(get_path('cache/by_book_filtered/%.pickle' % book_title), "wb"))
 
 if __name__ == '__main__':
     """
