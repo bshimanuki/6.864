@@ -1,11 +1,10 @@
-from data.bible import training_data
+from nirv import short
 import random
 from itertools import chain
 
 class Single:
     def __init__(self):
-        a = training_data.get_corresponding_sentences_in_bible('(WYC)', '(WEB)')
-        self.a = list(chain.from_iterable(a))
+        self.a = list(" ".join(sent) for sent in short)
         random.shuffle(self.a)
         self.i = 0
 

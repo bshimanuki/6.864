@@ -10,7 +10,7 @@ embedding_np = embedding.get_embedding_matrix()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
 latent_dim = 2 * lstm_size
-ckpt_file = 'temp.ckpt'
+ckpt_file = 'output/temp.ckpt'
 train_dir = 'train'
 
 eos_embedding = embedding.get_eos_embedding()
@@ -82,24 +82,21 @@ with tf.name_scope('loss'):
     outputs_2D = tf.reshape(outputs, [-1, num_features])
     logits_2D = tf.matmul(outputs_2D, embedding_matrix, transpose_b=True)
     logits = tf.reshape(logits_2D, [batch_size, -1, num_words])
-    log_probs = tf.nn.log_softmax(logits)
-    unmasked_log_probs = tf.reduce_sum(tf.mul(
-        log_probs, tf.one_hot(words, num_words)),
-        reduction_indices=2)
-    batch_LL = tf.div(tf.reduce_sum(
-        tf.mul(mask, unmasked_log_probs), reduction_indices=1), tf.cast(lens_plus_one, tf.float32))
+    unmasked_softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, words)
+    softmax_loss = tf.mul(unmasked_softmax_loss, mask)
+    batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens_plus_one, tf.float32))
 
     KLD = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.pow(mu_encoder, 2) - tf.exp(logvar_encoder), reduction_indices=1)
     KLD_word = tf.div(KLD, tf.cast(lens_plus_one, tf.float32))
     mean_KLD = tf.reduce_mean(KLD_word)
-    mean_NLL = -tf.reduce_mean(batch_LL)
-    loss = mean_KLD + mean_NLL
+    mean_loss = tf.reduce_mean(batch_loss)
+    total_loss = mean_KLD + mean_loss
     tf.scalar_summary('KLD', mean_KLD)
-    tf.scalar_summary('NLL', mean_NLL)
-    tf.scalar_summary('loss', loss)
+    tf.scalar_summary('NLL', mean_loss)
+    tf.scalar_summary('loss', total_loss)
 
 with tf.name_scope('train'):
-    train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
+    train_step = tf.train.AdamOptimizer(0.001).minimize(total_loss)
 
 saver = tf.train.Saver()
 
@@ -120,7 +117,7 @@ def train():
         for i in range(1, 200001):
             sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
             if i%logging_iteration == 0:
-                _, los, summary_str = sess.run((train_step, loss, summary_op),
+                _, los, summary_str = sess.run((train_step, total_loss, summary_op),
                         feed_dict={words:sentences, lens:lengths})
                 tpb = (time.time() - start_time) / logging_iteration
                 print("step {0}, loss = {1} ({2} sec/batch)".format(i, los, tpb))
@@ -129,7 +126,7 @@ def train():
                     saver.save(sess, ckpt_file)
                 start_time = time.time()
             else:
-                sess.run((train_step, loss), feed_dict={words:sentences, lens:lengths})
+                sess.run((train_step, total_loss), feed_dict={words:sentences, lens:lengths})
 
 def test():
     b = batch.Single()
@@ -139,7 +136,7 @@ def test():
         print(bat[0])
         for i in range(1):
             sentences, lengths = embedding.word_indices(bat, eos=True)
-            _, output, los = sess.run((train_step, outputs, loss), feed_dict={words:sentences, lens:lengths})
+            _, output, los = sess.run((train_step, outputs, total_loss), feed_dict={words:sentences, lens:lengths})
         one_sentence = output[0]
         word_sequence = embedding.embedding_to_sentence(output[0])
         print(word_sequence)
