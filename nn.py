@@ -3,9 +3,11 @@ import embedding
 import batch
 import os
 import time
-import numpy as np
+import scipy as sp
 
 batch_size = 20
+kl_translate = 15000
+kl_param = 1.0
 embedding_np = embedding.get_embedding_matrix()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
@@ -14,6 +16,11 @@ ckpt_file = 'output/temp.ckpt'
 train_dir = 'train'
 
 eos_embedding = embedding.get_eos_embedding()
+
+def sigmoid(c):
+    return lambda x: sp.special.expit(c*(x - kl_translate))
+
+kl_sigmoid = sigmoid(kl_param)
 
 with tf.name_scope("embedding"):
     eos_matrix = tf.reshape(tf.tile(tf.constant(
@@ -31,6 +38,7 @@ with tf.name_scope("inputs"):
     words = tf.placeholder(tf.int32, [batch_size, None])
     lens = tf.placeholder(tf.int32, [batch_size])
     lens_plus_one = tf.add(lens, 1)
+    kl_weight = tf.placeholder(tf.float32)
 
     word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
     eos_plus_words = tf.reverse(tf.slice(tf.reverse(tf.concat(
@@ -90,7 +98,7 @@ with tf.name_scope('loss'):
     KLD_word = tf.div(KLD, tf.cast(lens_plus_one, tf.float32))
     mean_KLD = tf.reduce_mean(KLD_word)
     mean_loss = tf.reduce_mean(batch_loss)
-    total_loss = mean_KLD + mean_loss
+    total_loss = kl_weight*mean_KLD + mean_loss
     tf.scalar_summary('KLD', mean_KLD)
     tf.scalar_summary('NLL', mean_loss)
     tf.scalar_summary('loss', total_loss)
@@ -118,7 +126,7 @@ def train():
             sentences, lengths = embedding.word_indices(b.next_batch(batch_size), eos=True)
             if i%logging_iteration == 0:
                 _, los, summary_str = sess.run((train_step, total_loss, summary_op),
-                        feed_dict={words:sentences, lens:lengths})
+                        feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
                 tpb = (time.time() - start_time) / logging_iteration
                 print("step {0}, loss = {1} ({2} sec/batch)".format(i, los, tpb))
                 summary_writer.add_summary(summary_str, global_step=i)
@@ -126,7 +134,7 @@ def train():
                     saver.save(sess, ckpt_file)
                 start_time = time.time()
             else:
-                sess.run((train_step, total_loss), feed_dict={words:sentences, lens:lengths})
+                sess.run((train_step, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
 
 def test():
     b = batch.Single()
@@ -136,7 +144,7 @@ def test():
         print(bat[0])
         for i in range(1):
             sentences, lengths = embedding.word_indices(bat, eos=True)
-            _, output, los = sess.run((train_step, outputs, total_loss), feed_dict={words:sentences, lens:lengths})
+            _, output, los = sess.run((train_step, outputs, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
         one_sentence = output[0]
         word_sequence = embedding.embedding_to_sentence(output[0])
         print(word_sequence)
