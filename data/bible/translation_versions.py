@@ -29,11 +29,13 @@ translation_versions = [
         '(RHE)',
         '(RSV)',
         '(RSVA)',
+        '(SBLG)',
         '(TMB)',
         '(TMBA)',
         '(TYN)',
         '(WBT)',
         '(WEB)',
+        '(WNT)',
         '(WYC)',
         '(YLT)',
 ]
