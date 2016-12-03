@@ -82,7 +82,7 @@ with tf.name_scope('encoder'):
 # Decoder
 with tf.variable_scope('decoder'):
     decoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
-    outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens_plus_one, dtype=tf.float32)
+    outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens_plus_one, initial_state=z, dtype=tf.float32)
 
 with tf.name_scope('loss'):
     # Compute probabilities
