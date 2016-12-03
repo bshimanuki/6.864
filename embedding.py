@@ -16,7 +16,7 @@ EOS = '<EOS>'
 bible_path = 'data/bible/cache/by_book_filtered'
 
 def process_sentence(sentence, bos=False, eos=False):
-    # setences are split by preprocessing in /data/bible/preprocess.py
+    # sentences are split by preprocessing in /data/bible/preprocess.py
     sentence = sentence.split()
     if eos:
         sentence = sentence + [EOS]
@@ -25,6 +25,14 @@ def process_sentence(sentence, bos=False, eos=False):
     return sentence
 
 def process_book(name, bos=False, eos=False):
+    """
+    Extracts all sentences from a specified book of the Bible.
+
+    :param name:  Name of book of the Bible; data is expected to be stored as a *.pickle file.
+    :param bos: Whether to append a BOS token to the sentences.
+    :param eos: Whether to append an EOS token to the sentences.
+    :return: List of all sentences from a specified book fo the Bible.
+    """
     sents = []
     with open('%s/%s.pickle' % (bible_path, name), 'rb') as f:
         book = pickle.load(f)
@@ -36,6 +44,14 @@ def process_book(name, bos=False, eos=False):
     return sents
 
 def process_bible(bos=False, eos=False):
+    """
+    Iterates over all sentences in the Bible.
+
+    :param bos: Whether to append a BOS token to the sentences.
+    :param eos: Whether to append an EOS token to the sentences.
+    :return: Iterator iterating over Bible books in order (as specified in bible_books)
+       with sentences randomly sorted within each Bible book.
+    """
     def shuffled_book(book):
         text = process_book(book, bos=bos, eos=eos)
         random.shuffle(text)
