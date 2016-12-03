@@ -5,7 +5,7 @@ import os
 import time
 import scipy as sp
 
-batch_size = 20
+batch_size = 60
 kl_translate = 15000
 kl_param = 1.0
 embedding_np = embedding.get_embedding_matrix()
@@ -104,7 +104,7 @@ with tf.name_scope('loss'):
     tf.scalar_summary('loss', total_loss)
 
 with tf.name_scope('train'):
-    train_step = tf.train.AdamOptimizer(0.001).minimize(total_loss)
+    train_step = tf.train.AdamOptimizer(0.0001).minimize(total_loss)
 
 saver = tf.train.Saver()
 
