@@ -4,6 +4,9 @@ import batch
 import os
 import time
 import scipy as sp
+from nirv import short
+
+CORPUS = short
 
 batch_size = 60
 kl_translate = 15000
@@ -109,7 +112,7 @@ with tf.name_scope('train'):
 saver = tf.train.Saver()
 
 def train():
-    b = batch.Single()
+    b = batch.Single(CORPUS)
     summary_op = tf.merge_all_summaries()
     with tf.Session() as sess:
         if os.path.isfile(ckpt_file):
@@ -137,7 +140,7 @@ def train():
                 sess.run((train_step, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
 
 def test():
-    b = batch.Single()
+    b = batch.Single(CORPUS)
     with tf.Session() as sess:
         saver.restore(sess, ckpt_file)
         bat = b.next_batch(batch_size)

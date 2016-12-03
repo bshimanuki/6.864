@@ -1,10 +1,9 @@
-from nirv import short
 import random
 from itertools import chain
 
 class Single:
-    def __init__(self):
-        self.a = list(" ".join(sent) for sent in short)
+    def __init__(self, corpus):
+        self.a = list(" ".join(sent) for sent in corpus)
         random.shuffle(self.a)
         self.i = 0
 
