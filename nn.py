@@ -13,6 +13,7 @@ embedding_np = embedding.get_embedding_matrix()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
 latent_dim_size = 2 * lstm_size
+half_latent_dim_size = int(latent_dim_size/2) # TODO: this is a badbadbad hack
 
 eos_embedding = embedding.get_eos_embedding()
 
@@ -30,17 +31,24 @@ with tf.name_scope("embedding"):
 with tf.name_scope("inputs"):
     words = tf.placeholder(tf.int32, [BATCH_SIZE, None])
     lens = tf.placeholder(tf.int32, [BATCH_SIZE])
-    kl_weight = tf.placeholder(tf.float32)
 
     word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
 
 with tf.name_scope('encoder'):
     encoder_state = encoder_layer(word_vectors, lens)
 
-    (w_mu, b_mu) = ff_layer_vars(2*lstm_size, latent_dim_size, name='mu')
-    mu = ff_layer(encoder_state, w_mu, b_mu, name='mu')
-    (w_logvar, b_logvar) = ff_layer_vars(2*lstm_size, latent_dim_size, name='logvar')
-    logvar = ff_layer(encoder_state, w_logvar, b_logvar, name='logvar')
+    (w_mu_style, b_mu_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_style')
+    (w_mu_content, b_mu_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_content')
+    (w_logvar_style, b_logvar_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_style')
+    (w_logvar_content, b_logvar_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_content')
+
+    mu_style = ff_layer(encoder_state, w_mu_style, b_mu_style, name='mu_style')
+    mu_content = ff_layer(encoder_state, w_mu_content, b_mu_content, name='mu_content')
+    logvar_style = ff_layer(encoder_state, w_logvar_style, b_logvar_style, name='logvar_style')
+    logvar_content = ff_layer(encoder_state, w_logvar_content, b_logvar_content, name='logvar_content')
+    
+    mu = tf.concat(1, [mu_style, mu_content])
+    logvar = tf.concat(1, [logvar_style, logvar_content])
 
     z = sampling_layer(mu, logvar)
 
@@ -58,7 +66,8 @@ with tf.name_scope('loss'):
     softmax_loss = tf.mul(unmasked_softmax_loss, mask)
     batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens+1, tf.float32))
     mean_loss = tf.reduce_mean(batch_loss)
-
+    
+    kl_weight = tf.placeholder(tf.float32)
     KLD = -0.5 * tf.reduce_sum(1 + logvar - tf.pow(mu, 2) - tf.exp(logvar), reduction_indices=1)
     KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
     mean_KLD = tf.reduce_mean(KLD_word)

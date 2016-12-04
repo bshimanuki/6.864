@@ -22,6 +22,15 @@ def ff_layer(input_layer, w, b, name = None):
 
 
 def ff_layer_vars(input_depth, output_depth, name = None):
+    """
+    Used in a fully connected layer:
+
+    (batch_size, input_depth) -> (batch_size, depth)
+    :param input_depth:
+    :param output_depth:
+    :param name:
+    :return:
+    """
     with tf.name_scope(name):
         w = weight_variable([input_depth, output_depth], name)
         b = bias_variable([output_depth], name)
