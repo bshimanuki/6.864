@@ -76,9 +76,9 @@ def word_indices(sentences, eos=False):
 def one_hot_indices(sentences, eos=False):
     sents = [process_sentence(sent, eos) for sent in sentences]
     if eos:
-        lens = np.array(len(sent) - 1 for sent in sentences]
+        lens = np.array(len(sent) - 1 for sent in sentences)
     else:
-        lens = np.array(len(sent) for sent in sentences]
+        lens = np.array(len(sent) for sent in sentences)
     max_len = max(lens)
     embeddings = []
     for sent in sentences:
@@ -108,13 +108,13 @@ def embedding_to_sentence(embeddings):
 def one_hot_to_sentence(embeddings):
     vocab = word2vec.index_to_word_map()
     word_indices = [word_vec.index(max(word_vec)) for word_vec in embeddings]
-    return ' '.join([vocab[index] for index in word_indices]
+    return ' '.join([vocab[index] for index in word_indices])
 
-wd = 200
 try:
     word2vec = Word2Vec.load(OUTPUT + '/word2vec.pickle')
     print("Found and loaded word embedding.")
 except FileNotFoundError:
+    wd = 200
     print("Generating word embeddings from scratch.")
     word2vec = Word2Vec(process_bible(eos=True),
             size=wd)
