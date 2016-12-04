@@ -6,13 +6,13 @@ import tensorflow as tf
 import batch
 import embedding
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TRAIN_DIR
-from nn_util import ff_layer
+from nn_util import ff_layer, ff_layer_vars, encoder_layer, sampling_layer, decoder_layer
 from util import sigmoid
 
 embedding_np = embedding.get_embedding_matrix()
 num_words, num_features = embedding_np.shape
 lstm_size = num_features
-latent_dim = 2 * lstm_size
+latent_dim_size = 2 * lstm_size
 
 eos_embedding = embedding.get_eos_embedding()
 
@@ -30,35 +30,23 @@ with tf.name_scope("embedding"):
 with tf.name_scope("inputs"):
     words = tf.placeholder(tf.int32, [BATCH_SIZE, None])
     lens = tf.placeholder(tf.int32, [BATCH_SIZE])
-    lens_plus_one = tf.add(lens, 1)
     kl_weight = tf.placeholder(tf.float32)
 
     word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
-    eos_plus_words = tf.reverse(tf.slice(tf.reverse(tf.concat(
-        1, [eos_matrix, word_vectors]),
-        [False, True, False]),
-        [0, 1, 0], [-1, -1, -1]),
-        [False, True, False])
 
 with tf.name_scope('encoder'):
-    with tf.variable_scope('encoder_lstm'):
-        encoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
-        _, encoder_state = tf.nn.dynamic_rnn(encoder, word_vectors, sequence_length=lens, dtype=tf.float32)
+    encoder_state = encoder_layer(word_vectors, lens)
 
-    mu = ff_layer(encoder_state, latent_dim, name='mu')
-    logvar = ff_layer(encoder_state, latent_dim, name='sigma')
+    (w_mu, b_mu) = ff_layer_vars(2*lstm_size, latent_dim_size, name='mu')
+    mu = ff_layer(encoder_state, w_mu, b_mu, name='mu')
+    (w_logvar, b_logvar) = ff_layer_vars(2*lstm_size, latent_dim_size, name='logvar')
+    logvar = ff_layer(encoder_state, w_logvar, b_logvar, name='logvar')
 
-    # Sample epsilon
-    epsilon = tf.random_normal(tf.shape(logvar), name='epsilon')
-
-    # Sample latent variable
-    std_encoder = tf.exp(0.5 * logvar)
-    z = mu + tf.mul(std_encoder, epsilon)
+    z = sampling_layer(mu, logvar)
 
 # Decoder
 with tf.variable_scope('decoder'):
-    decoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
-    outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens_plus_one, initial_state=z, dtype=tf.float32)
+    outputs = decoder_layer(z, word_vectors, lens, eos_matrix)
 
 with tf.name_scope('loss'):
     # Compute probabilities
@@ -68,12 +56,12 @@ with tf.name_scope('loss'):
     logits = tf.reshape(logits_2D, [BATCH_SIZE, -1, num_words])
     unmasked_softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, words)
     softmax_loss = tf.mul(unmasked_softmax_loss, mask)
-    batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens_plus_one, tf.float32))
+    batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens+1, tf.float32))
+    mean_loss = tf.reduce_mean(batch_loss)
 
     KLD = -0.5 * tf.reduce_sum(1 + logvar - tf.pow(mu, 2) - tf.exp(logvar), reduction_indices=1)
-    KLD_word = tf.div(KLD, tf.cast(lens_plus_one, tf.float32))
+    KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
     mean_KLD = tf.reduce_mean(KLD_word)
-    mean_loss = tf.reduce_mean(batch_loss)
     total_loss = kl_weight*mean_KLD + mean_loss
     tf.scalar_summary('KLD', mean_KLD)
     tf.scalar_summary('NLL', mean_loss)
