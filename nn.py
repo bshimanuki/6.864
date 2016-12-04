@@ -26,58 +26,62 @@ with tf.name_scope("embedding"):
         [BATCH_SIZE, 1, num_features])
     embedding_matrix = tf.Variable(embedding_np, name="embedding_matrix")
 
+(w_mu_style, b_mu_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_style')
+(w_mu_content, b_mu_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_content')
+(w_logvar_style, b_logvar_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_style')
+(w_logvar_content, b_logvar_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_content')
+
 # Placeholder for the inputs in a given iteration
 # NOTE: words is padded! Never add eos to the end of words!
-with tf.name_scope("inputs"):
-    words = tf.placeholder(tf.int32, [BATCH_SIZE, None])
-    lens = tf.placeholder(tf.int32, [BATCH_SIZE])
+words = tf.placeholder(tf.int32, [BATCH_SIZE, None])
+lens = tf.placeholder(tf.int32, [BATCH_SIZE])
 
+
+def hippopotamus(words, lens):
     word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
+    with tf.name_scope('encoder'):
+        encoder_state = encoder_layer(word_vectors, lens)
 
-with tf.name_scope('encoder'):
-    encoder_state = encoder_layer(word_vectors, lens)
+        mu_style = ff_layer(encoder_state, w_mu_style, b_mu_style, name='mu_style')
+        mu_content = ff_layer(encoder_state, w_mu_content, b_mu_content, name='mu_content')
+        logvar_style = ff_layer(encoder_state, w_logvar_style, b_logvar_style, name='logvar_style')
+        logvar_content = ff_layer(encoder_state, w_logvar_content, b_logvar_content, name='logvar_content')
 
-    (w_mu_style, b_mu_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_style')
-    (w_mu_content, b_mu_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_content')
-    (w_logvar_style, b_logvar_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_style')
-    (w_logvar_content, b_logvar_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_content')
+        mu = tf.concat(1, [mu_style, mu_content])
+        logvar = tf.concat(1, [logvar_style, logvar_content])
 
-    mu_style = ff_layer(encoder_state, w_mu_style, b_mu_style, name='mu_style')
-    mu_content = ff_layer(encoder_state, w_mu_content, b_mu_content, name='mu_content')
-    logvar_style = ff_layer(encoder_state, w_logvar_style, b_logvar_style, name='logvar_style')
-    logvar_content = ff_layer(encoder_state, w_logvar_content, b_logvar_content, name='logvar_content')
-    
-    mu = tf.concat(1, [mu_style, mu_content])
-    logvar = tf.concat(1, [logvar_style, logvar_content])
+        z = sampling_layer(mu, logvar)
 
-    z = sampling_layer(mu, logvar)
+    # Decoder
+    with tf.variable_scope('decoder'):
+        outputs = decoder_layer(z, word_vectors, lens, eos_matrix)
 
-# Decoder
-with tf.variable_scope('decoder'):
-    outputs = decoder_layer(z, word_vectors, lens, eos_matrix)
+    with tf.name_scope('loss'):
+        # Compute probabilities
+        mask = tf.sign(tf.reduce_max(tf.abs(outputs), reduction_indices=2))
+        outputs_2D = tf.reshape(outputs, [-1, num_features])
+        logits_2D = tf.matmul(outputs_2D, embedding_matrix, transpose_b=True)
+        logits = tf.reshape(logits_2D, [BATCH_SIZE, -1, num_words])
+        unmasked_softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, words)
+        softmax_loss = tf.mul(unmasked_softmax_loss, mask)
+        batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens+1, tf.float32))
+        mean_loss = tf.reduce_mean(batch_loss)
 
-with tf.name_scope('loss'):
-    # Compute probabilities
-    mask = tf.sign(tf.reduce_max(tf.abs(outputs), reduction_indices=2))
-    outputs_2D = tf.reshape(outputs, [-1, num_features])
-    logits_2D = tf.matmul(outputs_2D, embedding_matrix, transpose_b=True)
-    logits = tf.reshape(logits_2D, [BATCH_SIZE, -1, num_words])
-    unmasked_softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, words)
-    softmax_loss = tf.mul(unmasked_softmax_loss, mask)
-    batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens+1, tf.float32))
-    mean_loss = tf.reduce_mean(batch_loss)
-    
-    kl_weight = tf.placeholder(tf.float32)
-    KLD = -0.5 * tf.reduce_sum(1 + logvar - tf.pow(mu, 2) - tf.exp(logvar), reduction_indices=1)
-    KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
-    mean_KLD = tf.reduce_mean(KLD_word)
-    total_loss = kl_weight*mean_KLD + mean_loss
-    tf.scalar_summary('KLD', mean_KLD)
-    tf.scalar_summary('NLL', mean_loss)
-    tf.scalar_summary('loss', total_loss)
+        KLD = -0.5 * tf.reduce_sum(1 + logvar - tf.pow(mu, 2) - tf.exp(logvar), reduction_indices=1)
+        KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
+        mean_KLD = tf.reduce_mean(KLD_word)
 
-with tf.name_scope('train'):
-    train_step = tf.train.AdamOptimizer(0.0001).minimize(total_loss)
+    return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content
+
+(mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content) = hippopotamus(words, lens)
+
+kl_weight = tf.placeholder(tf.float32)
+total_loss = kl_weight*mean_KLD + mean_loss
+tf.scalar_summary('KLD', mean_KLD)
+tf.scalar_summary('NLL', mean_loss)
+tf.scalar_summary('loss', total_loss)
+
+train_step = tf.train.AdamOptimizer(0.0001).minimize(total_loss)
 
 saver = tf.train.Saver()
 
