@@ -1,27 +1,39 @@
 import tensorflow as tf
 
+from constants import BATCH_SIZE
+import embedding
+
+word_embedding = embedding.get_embedding_matrix()
+eos_embedding = embedding.get_eos_embedding()
+num_features = embedding.get_num_features()
+num_words = embedding.get_vocabulary_size()
+
+with tf.name_scope("embedding"):
+    eos_matrix = tf.reshape(tf.tile(tf.constant(
+        eos_embedding, dtype=tf.float32),
+        [BATCH_SIZE]),
+        [BATCH_SIZE, 1, num_features])
+    embedding_matrix = tf.Variable(word_embedding, name="embedding_matrix")
 
 def weight_variable(shape, name=None):
-    with tf.name_scope('weight'):
-        weight = tf.Variable(tf.truncated_normal(shape, stddev=0.0001))
-        tf.histogram_summary('%s/weight' % (name if name is not None else ''), weight)
-        return weight
+    weight = tf.get_variable('weight', initializer=tf.truncated_normal(shape, stddev=0.0001))
+    tf.histogram_summary('%s/weight' % (name if name is not None else ''), weight)
+    return weight
 
 
 def bias_variable(shape, name=None):
-    with tf.name_scope('bias'):
-        bias = tf.Variable(tf.zeros(shape=shape))
-        tf.histogram_summary('%s/bias' % (name if name is not None else ''), bias)
-        return bias
+    bias = tf.get_variable('bias', initializer=tf.zeros(shape=shape))
+    tf.histogram_summary('%s/bias' % (name if name is not None else ''), bias)
+    return bias
 
 
-def ff_layer(input_layer, w, b, name = None):
-    with tf.name_scope(name):
-        output = tf.matmul(input_layer, w) + b
+def ff_layer(input_layer, name = None):
+    with tf.variable_scope(name):
+        output = tf.matmul(input_layer, tf.get_variable('weight')) + tf.get_variable('bias')
         return output
 
 
-def ff_layer_vars(input_depth, output_depth, name = None):
+def init_ff_layer_vars(input_depth, output_depth, name = None):
     """
     Used in a fully connected layer:
 
@@ -31,10 +43,9 @@ def ff_layer_vars(input_depth, output_depth, name = None):
     :param name:
     :return:
     """
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         w = weight_variable([input_depth, output_depth], name)
         b = bias_variable([output_depth], name)
-        return (w, b)
 
 
 def encoder_layer(word_vectors, lens):
@@ -63,3 +74,41 @@ def decoder_layer(z, word_vectors, lens, eos_matrix):
     decoder = tf.nn.rnn_cell.LSTMCell(num_units=word_vectors.get_shape().as_list()[-1], state_is_tuple=False)
     outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens+1, initial_state=z, dtype=tf.float32)
     return outputs
+
+
+def hippopotamus(words, lens):
+    word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
+    with tf.name_scope('encoder'):
+        encoder_state = encoder_layer(word_vectors, lens)
+
+        with tf.variable_scope('shared_vars', reuse=True):
+            mu_style = ff_layer(encoder_state, name='mu_style')
+            mu_content = ff_layer(encoder_state, name='mu_content')
+            logvar_style = ff_layer(encoder_state, name='logvar_style')
+            logvar_content = ff_layer(encoder_state, name='logvar_content')
+
+        mu = tf.concat(1, [mu_style, mu_content])
+        logvar = tf.concat(1, [logvar_style, logvar_content])
+
+        z = sampling_layer(mu, logvar)
+
+    # Decoder
+    with tf.variable_scope('decoder'):
+        outputs = decoder_layer(z, word_vectors, lens, eos_matrix)
+
+    with tf.name_scope('loss_subtotal'):
+        # Compute probabilities
+        mask = tf.sign(tf.reduce_max(tf.abs(outputs), reduction_indices=2))
+        outputs_2D = tf.reshape(outputs, [-1, num_features])
+        logits_2D = tf.matmul(outputs_2D, embedding_matrix, transpose_b=True)
+        logits = tf.reshape(logits_2D, [BATCH_SIZE, -1, num_words])
+        unmasked_softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, words)
+        softmax_loss = tf.mul(unmasked_softmax_loss, mask)
+        batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens+1, tf.float32))
+        mean_loss = tf.reduce_mean(batch_loss)
+
+        KLD = -0.5 * tf.reduce_sum(1 + logvar - tf.pow(mu, 2) - tf.exp(logvar), reduction_indices=1)
+        KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
+        mean_KLD = tf.reduce_mean(KLD_word)
+
+    return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs

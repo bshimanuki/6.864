@@ -5,78 +5,38 @@ import tensorflow as tf
 
 import batch
 import embedding
-from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TRAIN_DIR
-from nn_util import ff_layer, ff_layer_vars, encoder_layer, sampling_layer, decoder_layer
+from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
+from nn_util import init_ff_layer_vars, hippopotamus
 from util import sigmoid
 
-embedding_np = embedding.get_embedding_matrix()
-num_words, num_features = embedding_np.shape
+num_features = embedding.get_num_features()
 lstm_size = num_features
 latent_dim_size = 2 * lstm_size
-half_latent_dim_size = int(latent_dim_size/2) # TODO: this is a badbadbad hack
 
-eos_embedding = embedding.get_eos_embedding()
 
 kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
 
-with tf.name_scope("embedding"):
-    eos_matrix = tf.reshape(tf.tile(tf.constant(
-        eos_embedding, dtype=tf.float32),
-        [BATCH_SIZE]),
-        [BATCH_SIZE, 1, num_features])
-    embedding_matrix = tf.Variable(embedding_np, name="embedding_matrix")
-
-(w_mu_style, b_mu_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_style')
-(w_mu_content, b_mu_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='mu_content')
-(w_logvar_style, b_logvar_style) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_style')
-(w_logvar_content, b_logvar_content) = ff_layer_vars(2*lstm_size, half_latent_dim_size, name='logvar_content')
-
-# Placeholder for the inputs in a given iteration
-# NOTE: words is padded! Never add eos to the end of words!
-words = tf.placeholder(tf.int32, [BATCH_SIZE, None])
-lens = tf.placeholder(tf.int32, [BATCH_SIZE])
 
 
-def hippopotamus(words, lens):
-    word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
-    with tf.name_scope('encoder'):
-        encoder_state = encoder_layer(word_vectors, lens)
+with tf.variable_scope('shared_vars'):
+    for scope_name in ['mu_style', 'mu_content', 'logvar_style', 'logvar_content']:
+        init_ff_layer_vars(2 * lstm_size, int(latent_dim_size/2), name=scope_name)
+    # Note: There's a bit of magic going on here. These variables are initialized here
+    # to be shared across multiple runs of hippopotamus, with the values being automatically
+    # extracted as they are required
 
-        mu_style = ff_layer(encoder_state, w_mu_style, b_mu_style, name='mu_style')
-        mu_content = ff_layer(encoder_state, w_mu_content, b_mu_content, name='mu_content')
-        logvar_style = ff_layer(encoder_state, w_logvar_style, b_logvar_style, name='logvar_style')
-        logvar_content = ff_layer(encoder_state, w_logvar_content, b_logvar_content, name='logvar_content')
+with tf.name_scope('inputs'):
+    # Placeholder for the inputs in a given iteration
+    # NOTE: words is padded! Never add eos to the end of words!
+    words = tf.placeholder(tf.int32, [BATCH_SIZE, None], name = 'words')
+    lens = tf.placeholder(tf.int32, [BATCH_SIZE], name = 'lengths')
+    kl_weight = tf.placeholder(tf.float32, name='kl_weight')
 
-        mu = tf.concat(1, [mu_style, mu_content])
-        logvar = tf.concat(1, [logvar_style, logvar_content])
+(mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = hippopotamus(words, lens)
 
-        z = sampling_layer(mu, logvar)
+with tf.name_scope('loss_overall'):
+    total_loss = kl_weight*mean_KLD + mean_loss
 
-    # Decoder
-    with tf.variable_scope('decoder'):
-        outputs = decoder_layer(z, word_vectors, lens, eos_matrix)
-
-    with tf.name_scope('loss'):
-        # Compute probabilities
-        mask = tf.sign(tf.reduce_max(tf.abs(outputs), reduction_indices=2))
-        outputs_2D = tf.reshape(outputs, [-1, num_features])
-        logits_2D = tf.matmul(outputs_2D, embedding_matrix, transpose_b=True)
-        logits = tf.reshape(logits_2D, [BATCH_SIZE, -1, num_words])
-        unmasked_softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, words)
-        softmax_loss = tf.mul(unmasked_softmax_loss, mask)
-        batch_loss = tf.div(tf.reduce_sum(softmax_loss, reduction_indices=1), tf.cast(lens+1, tf.float32))
-        mean_loss = tf.reduce_mean(batch_loss)
-
-        KLD = -0.5 * tf.reduce_sum(1 + logvar - tf.pow(mu, 2) - tf.exp(logvar), reduction_indices=1)
-        KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
-        mean_KLD = tf.reduce_mean(KLD_word)
-
-    return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content
-
-(mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content) = hippopotamus(words, lens)
-
-kl_weight = tf.placeholder(tf.float32)
-total_loss = kl_weight*mean_KLD + mean_loss
 tf.scalar_summary('KLD', mean_KLD)
 tf.scalar_summary('NLL', mean_loss)
 tf.scalar_summary('loss', total_loss)
@@ -84,6 +44,17 @@ tf.scalar_summary('loss', total_loss)
 train_step = tf.train.AdamOptimizer(0.0001).minimize(total_loss)
 
 saver = tf.train.Saver()
+
+
+timestamp = time.strftime("%Y-%m-%d_%H:%M:%S")
+tensorboard_prefix = os.path.join(TB_LOGS_DIR, timestamp)
+
+if not os.path.exists(tensorboard_prefix):
+    print("Directory for checkpoints doesn't exist! Creating directory '%s'" % tensorboard_prefix)
+    os.makedirs(tensorboard_prefix)
+else:
+    print("Tensorboard logs will be saved to '%s'" % tensorboard_prefix)
+
 
 def train():
     b = batch.Single(CORPUS)
@@ -95,7 +66,7 @@ def train():
         else:
             print("Initializing parameters")
             sess.run(tf.initialize_all_variables())
-        summary_writer = tf.train.SummaryWriter(TRAIN_DIR, sess.graph)
+        summary_writer = tf.train.SummaryWriter(tensorboard_prefix, sess.graph)
         start_time = time.time()
         logging_iteration = 50
         for i in range(1, 200001):

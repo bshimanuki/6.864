@@ -98,6 +98,14 @@ def get_embedding_matrix():
 def get_eos_embedding():
     return get_embedding_matrix()[word2vec.words_to_indices(['<EOS>'])[0]]
 
+def get_num_features():
+    _, num_features = get_embedding_matrix().shape
+    return num_features
+
+def get_vocabulary_size():
+    num_words, _ = get_embedding_matrix().shape
+    return num_words
+
 def embedding_to_sentence(embeddings):
     vocab = word2vec.index_to_word_map()
     word_probs = np.matmul(embeddings, np.transpose(get_embedding_matrix()))
