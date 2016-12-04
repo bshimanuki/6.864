@@ -4,26 +4,19 @@ import time
 import tensorflow as tf
 
 import batch
-import embedding
+import embedder
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
-from nn_util import init_ff_layer_vars, hippopotamus
+from nn_util import hippopotamus, initialize_shared_variables
 from util import sigmoid
 
-num_features = embedding.get_num_features()
+num_features = embedder.get_num_features()
 lstm_size = num_features
 latent_dim_size = 2 * lstm_size
 
 
 kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
 
-
-
-with tf.variable_scope('shared_vars'):
-    for scope_name in ['mu_style', 'mu_content', 'logvar_style', 'logvar_content']:
-        init_ff_layer_vars(2 * lstm_size, int(latent_dim_size/2), name=scope_name)
-    # Note: There's a bit of magic going on here. These variables are initialized here
-    # to be shared across multiple runs of hippopotamus, with the values being automatically
-    # extracted as they are required
+initialize_shared_variables(lstm_size, latent_dim_size)
 
 with tf.name_scope('inputs'):
     # Placeholder for the inputs in a given iteration
@@ -70,7 +63,7 @@ def train():
         start_time = time.time()
         logging_iteration = 50
         for i in range(1, 200001):
-            sentences, lengths = embedding.word_indices(b.next_batch(BATCH_SIZE), eos=True)
+            sentences, lengths = embedder.word_indices(b.next_batch(BATCH_SIZE), eos=True)
             if i%logging_iteration == 0:
                 _, los, summary_str = sess.run((train_step, total_loss, summary_op),
                         feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
@@ -90,10 +83,10 @@ def test():
         bat = b.next_batch(BATCH_SIZE)
         print(bat[0])
         for i in range(1):
-            sentences, lengths = embedding.word_indices(bat, eos=True)
+            sentences, lengths = embedder.word_indices(bat, eos=True)
             _, output, los = sess.run((train_step, outputs, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
         one_sentence = output[0]
-        word_sequence = embedding.embedding_to_sentence(output[0])
+        word_sequence = embedder.embedding_to_sentence(output[0])
         print(word_sequence)
 
 train()

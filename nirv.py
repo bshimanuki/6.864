@@ -1,7 +1,7 @@
 from collections import Counter
 
 from data.bible.training_data import read_bible
-from embedding import word2vec
+from embedder import word2vec
 
 nirv = read_bible()['NIRV']
 sents = []

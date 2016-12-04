@@ -1,12 +1,13 @@
 import tensorflow as tf
 
 from constants import BATCH_SIZE
-import embedding
+import embedder
 
-word_embedding = embedding.get_embedding_matrix()
-eos_embedding = embedding.get_eos_embedding()
-num_features = embedding.get_num_features()
-num_words = embedding.get_vocabulary_size()
+
+word_embedding = embedder.get_embedding_matrix()
+eos_embedding = embedder.get_eos_embedding()
+num_features = embedder.get_num_features()
+num_words = embedder.get_vocabulary_size()
 
 with tf.name_scope("embedding"):
     eos_matrix = tf.reshape(tf.tile(tf.constant(
@@ -112,3 +113,12 @@ def hippopotamus(words, lens):
         mean_KLD = tf.reduce_mean(KLD_word)
 
     return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs
+
+
+def initialize_shared_variables(lstm_size, latent_dim_size):
+    with tf.variable_scope('shared_vars'):
+        for scope_name in ['mu_style', 'mu_content', 'logvar_style', 'logvar_content']:
+            init_ff_layer_vars(2 * lstm_size, int(latent_dim_size / 2), name=scope_name)
+            # Note: There's a bit of magic going on here. These variables are initialized here
+            # to be shared across multiple runs of hippopotamus, with the values being automatically
+            # extracted as they are required
