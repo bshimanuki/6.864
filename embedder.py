@@ -61,18 +61,6 @@ def process_bible(bos=False, eos=False):
             return itertools.chain(*map(shuffled_book, bible_books))
     return Iterator()
 
-def word_indices(sentences, eos=False):
-    if eos:
-        sents = [process_sentence(sent, eos=True) for sent in sentences]
-        lens = np.array([len(sent) - 1 for sent in sents])
-        max_len = max(lens) + 1
-    else:
-        sents = [process_sentence(sent) for sent in sentences]
-        lens = np.array([len(sent) for sent in sents])
-        max_len = max(lens)
-    v = np.stack([word2vec.words_to_indices(sent, sent_length=max_len) for sent in sents], axis=0)
-    return v, lens
-
 def one_hot_indices(sentences, eos=False):
     sents = [process_sentence(sent, eos) for sent in sentences]
     if eos:
@@ -91,27 +79,6 @@ def get_one_hot_matrix():
     num_words = len(vocab)
     identity = np.identity((num_words, num_words))
     return identity
-
-def get_embedding_matrix():
-    return word2vec.embedding_matrix()
-
-def get_eos_embedding():
-    return get_embedding_matrix()[word2vec.words_to_indices(['<EOS>'])[0]]
-
-def get_num_features():
-    _, num_features = get_embedding_matrix().shape
-    return num_features
-
-def get_vocabulary_size():
-    num_words, _ = get_embedding_matrix().shape
-    return num_words
-
-def embedding_to_sentence(embeddings):
-    vocab = word2vec.index_to_word_map()
-    word_probs = np.matmul(embeddings, np.transpose(get_embedding_matrix()))
-    num_words_sentence, num_words_vocab = word_probs.shape
-    word_sequence = [vocab[np.argmax(word_probs[i])] for i in range(num_words_sentence)]
-    return ' '.join(word_sequence)
 
 def one_hot_to_sentence(embeddings):
     vocab = word2vec.index_to_word_map()

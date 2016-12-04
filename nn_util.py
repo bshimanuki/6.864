@@ -4,18 +4,6 @@ from constants import BATCH_SIZE
 import embedder
 
 
-word_embedding = embedder.get_embedding_matrix()
-eos_embedding = embedder.get_eos_embedding()
-num_features = embedder.get_num_features()
-num_words = embedder.get_vocabulary_size()
-
-with tf.name_scope("embedding"):
-    eos_matrix = tf.reshape(tf.tile(tf.constant(
-        eos_embedding, dtype=tf.float32),
-        [BATCH_SIZE]),
-        [BATCH_SIZE, 1, num_features])
-    embedding_matrix = tf.Variable(word_embedding, name="embedding_matrix")
-
 def weight_variable(shape, name=None):
     weight = tf.get_variable('weight', initializer=tf.truncated_normal(shape, stddev=0.0001))
     tf.histogram_summary('%s/weight' % (name if name is not None else ''), weight)
@@ -77,8 +65,13 @@ def decoder_layer(z, word_vectors, lens, eos_matrix):
     return outputs
 
 
-def hippopotamus(words, lens):
-    word_vectors = tf.nn.embedding_lookup([embedding_matrix], words)
+def hippopotamus(words, lens, num_features, num_words):
+    with tf.variable_scope('embedding', reuse=True):
+        embedding_matrix = tf.get_variable('embedding_matrix')
+        eos_matrix = tf.get_variable('eos_matrix')
+
+    word_vectors = tf.nn.embedding_lookup(embedding_matrix, words)
+
     with tf.name_scope('encoder'):
         encoder_state = encoder_layer(word_vectors, lens)
 
@@ -122,3 +115,17 @@ def initialize_shared_variables(lstm_size, latent_dim_size):
             # Note: There's a bit of magic going on here. These variables are initialized here
             # to be shared across multiple runs of hippopotamus, with the values being automatically
             # extracted as they are required
+
+
+def initialize_embedding_variables(embedding):
+    word_embedding = embedding.get_embedding_matrix()
+    eos_embedding = embedding.get_eos_embedding()
+    with tf.variable_scope("embedding"):
+        tf.get_variable(
+            "eos_matrix",
+            initializer = tf.reshape(
+                tf.tile(tf.constant(eos_embedding, dtype=tf.float32), [BATCH_SIZE]),
+                [BATCH_SIZE, 1, embedding.get_num_features()],
+            )
+        )
+        tf.get_variable("embedding_matrix", initializer=word_embedding)

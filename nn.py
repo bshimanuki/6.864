@@ -4,18 +4,22 @@ import time
 import tensorflow as tf
 
 import batch
-import embedder
+from embedder import word2vec
+from w2vEmbedding import W2VEmbedding
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
-from nn_util import hippopotamus, initialize_shared_variables
+from nn_util import hippopotamus, initialize_shared_variables, initialize_embedding_variables
 from util import sigmoid
 
-num_features = embedder.get_num_features()
+embedding = W2VEmbedding(word2vec)
+num_features = embedding.get_num_features()
+num_words = embedding.get_vocabulary_size()
 lstm_size = num_features
 latent_dim_size = 2 * lstm_size
 
 
 kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
 
+initialize_embedding_variables(embedding)
 initialize_shared_variables(lstm_size, latent_dim_size)
 
 with tf.name_scope('inputs'):
@@ -25,7 +29,7 @@ with tf.name_scope('inputs'):
     lens = tf.placeholder(tf.int32, [BATCH_SIZE], name = 'lengths')
     kl_weight = tf.placeholder(tf.float32, name='kl_weight')
 
-(mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = hippopotamus(words, lens)
+(mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = hippopotamus(words, lens, num_features, num_words)
 
 with tf.name_scope('loss_overall'):
     total_loss = kl_weight*mean_KLD + mean_loss
@@ -63,7 +67,7 @@ def train():
         start_time = time.time()
         logging_iteration = 50
         for i in range(1, 200001):
-            sentences, lengths = embedder.word_indices(b.next_batch(BATCH_SIZE), eos=True)
+            sentences, lengths = embedding.word_indices(b.next_batch(BATCH_SIZE), eos=True)
             if i%logging_iteration == 0:
                 _, los, summary_str = sess.run((train_step, total_loss, summary_op),
                         feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
@@ -83,10 +87,10 @@ def test():
         bat = b.next_batch(BATCH_SIZE)
         print(bat[0])
         for i in range(1):
-            sentences, lengths = embedder.word_indices(bat, eos=True)
+            sentences, lengths = embedding.word_indices(bat, eos=True)
             _, output, los = sess.run((train_step, outputs, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
         one_sentence = output[0]
-        word_sequence = embedder.embedding_to_sentence(output[0])
+        word_sequence = embedding.embedding_to_sentence(output[0])
         print(word_sequence)
 
 train()
