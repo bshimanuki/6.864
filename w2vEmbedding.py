@@ -11,7 +11,7 @@ class W2VEmbedding(Embedding):
 
     def get_embedding_matrix(self):
         return self.word2vec.embedding_matrix()
-
+    
     def word_indices(self, sentences, eos=False):
         if eos:
             sents = [process_sentence(sent, eos=True) for sent in sentences]

@@ -6,11 +6,23 @@ import tensorflow as tf
 import batch
 from embedder import word2vec
 from w2vEmbedding import W2VEmbedding
+from onehotEmbedding import OnehotEmbedding
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
 from nn_util import varec
 from util import sigmoid
 
-embedding = W2VEmbedding(word2vec)
+import argparse
+
+parser = argparse.ArgumentParser(description='Embedding type (w2v or onehot)')
+parser.add_argument('-emb', dest="embedding_type", action="store", type=str)
+
+embedding_type = parser.parse_args().embedding_type
+
+if (embedding_type == "w2v"):
+    embedding = W2VEmbedding(word2vec)
+else:
+    embedding = OnehotEmbedding(word2vec)
+
 style_fraction = .01
 
 kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
