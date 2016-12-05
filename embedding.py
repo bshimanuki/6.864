@@ -1,5 +1,7 @@
 import abc
 
+from embedder import EOS
+
 class Embedding:
     __metaclass__ = abc.ABCMeta
     @abc.abstractmethod
@@ -19,7 +21,7 @@ class Embedding:
         pass
 
     def get_eos_embedding(self):
-        return self.get_embedding_matrix()[self.words_to_indices(['<EOS>'])[0]]
+        return self.get_embedding_matrix()[self.words_to_indices([EOS])[0]]
 
     def get_num_features(self):
         _, num_features = self.get_embedding_matrix().shape

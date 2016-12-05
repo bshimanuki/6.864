@@ -1,6 +1,7 @@
 import os
 import time
 
+import numpy as np
 import tensorflow as tf
 
 import batch
@@ -33,9 +34,10 @@ with tf.name_scope('inputs'):
     words = tf.placeholder(tf.int32, [BATCH_SIZE, None], name = 'words')
     lens = tf.placeholder(tf.int32, [BATCH_SIZE], name = 'lengths')
     kl_weight = tf.placeholder(tf.float32, name='kl_weight')
+    generation_state = tf.placeholder(tf.int32, [BATCH_SIZE, None], name='sentence')
 
 with tf.variable_scope('shared'):
-    (mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = varec(words, lens, embedding, style_fraction)
+    (mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs, generative_outputs, generative_output_words) = varec(words, lens, embedding, style_fraction, generation_state)
 
 with tf.name_scope('loss_overall'):
     total_loss = mean_loss + kl_weight*mean_KLD
@@ -75,14 +77,23 @@ def train():
         for epoch in range(1, NUM_EPOCHS+1):
             start_time = time.time()
             for i in range(epoch_length):
-                sentences, lengths = embedding.word_indices(b.next_batch(BATCH_SIZE), eos=True)
-                _, los, summary_str = sess.run((train_step, total_loss, summary_op),
+                next_batch = b.next_batch(BATCH_SIZE)
+                sentences, lengths = embedding.word_indices(next_batch, eos=True)
+                _, los, _mu_style, _mu_content, summary_str = sess.run((train_step, total_loss, mu_style, mu_content, summary_op),
                         feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
                 summary_writer.add_summary(summary_str, global_step=i)
                 if i%logging_iteration == 0:
                     tpb = (time.time() - start_time) / logging_iteration
                     print("step {0}, training loss = {1} ({2} sec/batch)".format(i, los, tpb))
                     start_time = time.time()
+                if i%1 == 0:
+                    mu = np.concatenate((_mu_style, _mu_content), axis=1)
+                    gen_output = sess.run(generative_outputs, feed_dict={generation_state:mu})
+                    sin = next_batch[0]
+                    sout = gen_output[0]
+                    print(sin)
+                    word_sequence = embedding.embedding_to_sentence(sout)
+                    print(word_sequence)
             # Validation loss
             sentences, lengths = embedding.word_indices(b.random_validation_batch(BATCH_SIZE), eos=True)
             los = sess.run(total_loss, feed_dict={words:sentences, lens:lengths, kl_weight: 0})

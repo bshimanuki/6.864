@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from constants import BATCH_SIZE
+from constants import BATCH_SIZE, MAX_GENERATION_SIZE
 import embedder
 
 
@@ -48,11 +48,31 @@ def decoder_layer(z, word_vectors, lens, eos_matrix, lstm_size):
         [0, 1, 0], [-1, -1, -1]),
         [False, True, False])
     decoder = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
-    outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens+1, initial_state=z, dtype=tf.float32)
-    return outputs
+    outputs, _ = tf.nn.dynamic_rnn(decoder, eos_plus_words, sequence_length=lens+1, initial_state=z, dtype=tf.float32, scope='RNN')
+    return outputs, decoder
 
 
-def varec(words_placeholder, lens, embedding, style_fraction):
+def generative_decoder_layer(cell, initial_state, embedding_matrix, eos_matrix):
+    """Adapted from definition of tf.nn.seq2seq.rnn_decoder."""
+    with tf.variable_scope('RNN', reuse=True):
+        state = initial_state
+        outputs = []
+        output_words = []
+        inp = tf.reshape(eos_matrix, [BATCH_SIZE, -1])
+        print(list(map(lambda x:x.name,tf.all_variables())))
+        for i in range(MAX_GENERATION_SIZE):
+            output, state = cell(inp, state)
+
+            logits = tf.matmul(output, embedding_matrix, transpose_b=True)
+            words = tf.argmax(logits, dimension=1)
+            inp = tf.nn.embedding_lookup(embedding_matrix, words)
+
+            outputs.append(output)
+            output_words.append(words)
+        return outputs, output_words
+
+
+def varec(words_placeholder, lens, embedding, style_fraction, generation_state):
     num_features = embedding.get_num_features()
     num_words = embedding.get_vocabulary_size()
     lstm_size = num_features
@@ -81,7 +101,9 @@ def varec(words_placeholder, lens, embedding, style_fraction):
 
     # Decoder
     with tf.variable_scope('decoder'):
-        outputs = decoder_layer(z, word_vectors, lens, eos_matrix, lstm_size)
+        outputs, decoder_cell = decoder_layer(z, word_vectors, lens, eos_matrix, lstm_size)
+
+        generative_outputs, generative_output_words = generative_decoder_layer(decoder_cell, z, embedding_matrix, eos_matrix)
 
     with tf.name_scope('loss_subtotal'):
         # Compute probabilities
@@ -98,7 +120,7 @@ def varec(words_placeholder, lens, embedding, style_fraction):
         KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
         mean_KLD = tf.reduce_mean(KLD_word)
 
-    return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs
+    return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs, generative_outputs, generative_output_words
 
 def tf_eos_matrix(embedding):
     return tf.reshape(
