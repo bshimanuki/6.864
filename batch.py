@@ -2,9 +2,12 @@ import random
 from itertools import chain
 
 class Single:
-    def __init__(self, corpus):
-        self.a = list(" ".join(sent) for sent in corpus)
-        random.shuffle(self.a)
+    def __init__(self, corpus, train_ratio=0.8):
+        a = list(" ".join(sent) for sent in corpus)
+        random.shuffle(a)
+        t = int(train_ratio * len(a))
+        self.a = a[:t]
+        self.b = a[t:]
         self.i = 0
 
     def next_batch(self, batch_size):
@@ -14,3 +17,10 @@ class Single:
         ret = self.a[self.i:self.i+batch_size]
         self.i += batch_size
         return ret
+
+    def random_validation_batch(self, batch_size):
+        random.shuffle(self.b)
+        return self.b[:batch_size]
+
+    def num_training(self):
+        return len(self.a)

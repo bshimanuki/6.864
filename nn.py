@@ -7,7 +7,7 @@ import batch
 from embedder import word2vec
 from w2vEmbedding import W2VEmbedding
 from onehotEmbedding import OnehotEmbedding
-from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
+from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS
 from nn_util import varec
 from util import sigmoid
 
@@ -38,7 +38,7 @@ with tf.variable_scope('shared'):
     (mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = varec(words, lens, embedding, style_fraction)
 
 with tf.name_scope('loss_overall'):
-    total_loss = kl_weight*mean_KLD + mean_loss
+    total_loss = mean_loss + kl_weight*mean_KLD
 
 tf.scalar_summary('KLD', mean_KLD)
 tf.scalar_summary('NLL', mean_loss)
@@ -61,6 +61,7 @@ else:
 
 def train():
     b = batch.Single(CORPUS)
+    epoch_length = b.num_training() // BATCH_SIZE
     summary_op = tf.merge_all_summaries()
     with tf.Session() as sess:
         if os.path.isfile(CHECKPOINT_FILE):
@@ -70,19 +71,25 @@ def train():
             print("Initializing parameters")
             sess.run(tf.initialize_all_variables())
         summary_writer = tf.train.SummaryWriter(tensorboard_prefix, sess.graph)
-        start_time = time.time()
         logging_iteration = 50
-        for i in range(1, 200001):
-            sentences, lengths = embedding.word_indices(b.next_batch(BATCH_SIZE), eos=True)
-            _, los, summary_str = sess.run((train_step, total_loss, summary_op),
-                    feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
-            summary_writer.add_summary(summary_str, global_step=i)
-            if i%logging_iteration == 0:
-                tpb = (time.time() - start_time) / logging_iteration
-                print("step {0}, loss = {1} ({2} sec/batch)".format(i, los, tpb))
-                if i%1000 == 0:
-                    saver.save(sess, CHECKPOINT_FILE)
-                start_time = time.time()
+        for epoch in range(1, NUM_EPOCHS+1):
+            start_time = time.time()
+            for i in range(epoch_length):
+                sentences, lengths = embedding.word_indices(b.next_batch(BATCH_SIZE), eos=True)
+                _, los, summary_str = sess.run((train_step, total_loss, summary_op),
+                        feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
+                summary_writer.add_summary(summary_str, global_step=i)
+                if i%logging_iteration == 0:
+                    tpb = (time.time() - start_time) / logging_iteration
+                    print("step {0}, training loss = {1} ({2} sec/batch)".format(i, los, tpb))
+                    start_time = time.time()
+            # Validation loss
+            sentences, lengths = embedding.word_indices(b.random_validation_batch(BATCH_SIZE), eos=True)
+            los = sess.run(total_loss, feed_dict={words:sentences, lens:lengths, kl_weight: 0})
+            print("Epoch {0} validation loss: {1}".format(epoch, los))
+            if epoch%5 == 0:
+                saver.save(sess, CHECKPOINT_FILE)
+
 
 def test():
     b = batch.Single(CORPUS)
@@ -92,7 +99,7 @@ def test():
         print(bat[0])
         for i in range(1):
             sentences, lengths = embedding.word_indices(bat, eos=True)
-            _, output, los = sess.run((train_step, outputs, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
+            output, los = sess.run((outputs, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:0})
         one_sentence = output[0]
         word_sequence = embedding.embedding_to_sentence(output[0])
         print(word_sequence)
