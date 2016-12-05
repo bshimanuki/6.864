@@ -14,7 +14,7 @@ from util import sigmoid
 import argparse
 
 parser = argparse.ArgumentParser(description='Embedding type (w2v or onehot)')
-parser.add_argument('-emb', dest="embedding_type", action="store", type=str)
+parser.add_argument('-emb', dest="embedding_type", default="w2v", action="store", type=str)
 
 embedding_type = parser.parse_args().embedding_type
 
