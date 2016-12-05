@@ -26,8 +26,8 @@ def ff_layer(input_layer, input_depth, output_depth, name=None):
     return output
 
 
-def encoder_layer(word_vectors, lens):
-    lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=word_vectors.get_shape().as_list()[-1], state_is_tuple=False)
+def encoder_layer(word_vectors, lens, lstm_size):
+    lstm_cell = tf.nn.rnn_cell.LSTMCell(num_units=lstm_size, state_is_tuple=False)
     _, encoder_state = tf.nn.dynamic_rnn(lstm_cell, word_vectors, sequence_length=lens, dtype=tf.float32)
     return encoder_state
 
@@ -56,12 +56,12 @@ def varec(words_placeholder, lens, embedding, style_fraction):
     num_features = embedding.get_num_features()
     num_words = embedding.get_vocabulary_size()
     lstm_size = num_features
-    content_size = int(2 * lstm_size * (1-style_fraction))
-    style_size = 2 * lstm_size - content_size
+    content_size = int(2*lstm_size * (1-style_fraction))
+    style_size = 2*lstm_size - content_size
 
     with tf.name_scope('embedding'):
-        embedding_matrix = tf_eos_matrix(embedding)
-        eos_matrix = tf_embedding_matrix(embedding)
+        eos_matrix = tf_eos_matrix(embedding)
+        embedding_matrix = tf_embedding_matrix(embedding)
 
     word_vectors = tf.nn.embedding_lookup(embedding_matrix, words_placeholder)
 
@@ -106,5 +106,5 @@ def tf_eos_matrix(embedding):
         [BATCH_SIZE, 1, embedding.get_num_features()])
 
 def tf_embedding_matrix(embedding):
-    return tf.get_variable("embedding_matrix", initializer=tf.constant_initializer(
-        embedding.get_embedding_matrix()), trainable=False)
+    matr_np = embedding.get_embedding_matrix()
+    return tf.get_variable("embedding_matrix", shape=matr_np.shape, initializer=tf.constant_initializer(matr_np), trainable=False)

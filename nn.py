@@ -7,7 +7,7 @@ import batch
 from embedder import word2vec
 from w2vEmbedding import W2VEmbedding
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
-from nn_util import varec, initialize_shared_variables, initialize_embedding_variables
+from nn_util import varec
 from util import sigmoid
 
 embedding = W2VEmbedding(word2vec)
