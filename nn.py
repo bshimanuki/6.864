@@ -7,20 +7,13 @@ import batch
 from embedder import word2vec
 from w2vEmbedding import W2VEmbedding
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR
-from nn_util import hippopotamus, initialize_shared_variables, initialize_embedding_variables
+from nn_util import varec, initialize_shared_variables, initialize_embedding_variables
 from util import sigmoid
 
 embedding = W2VEmbedding(word2vec)
-num_features = embedding.get_num_features()
-num_words = embedding.get_vocabulary_size()
-lstm_size = num_features
-latent_dim_size = 2 * lstm_size
-
+style_fraction = .01
 
 kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
-
-initialize_embedding_variables(embedding)
-initialize_shared_variables(lstm_size, latent_dim_size)
 
 with tf.name_scope('inputs'):
     # Placeholder for the inputs in a given iteration
@@ -29,7 +22,8 @@ with tf.name_scope('inputs'):
     lens = tf.placeholder(tf.int32, [BATCH_SIZE], name = 'lengths')
     kl_weight = tf.placeholder(tf.float32, name='kl_weight')
 
-(mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = hippopotamus(words, lens, num_features, num_words)
+with tf.variable_scope('shared'):
+    (mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs) = varec(words, lens, embedding, style_fraction)
 
 with tf.name_scope('loss_overall'):
     total_loss = kl_weight*mean_KLD + mean_loss
@@ -68,17 +62,15 @@ def train():
         logging_iteration = 50
         for i in range(1, 200001):
             sentences, lengths = embedding.word_indices(b.next_batch(BATCH_SIZE), eos=True)
+            _, los, summary_str = sess.run((train_step, total_loss, summary_op),
+                    feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
+            summary_writer.add_summary(summary_str, global_step=i)
             if i%logging_iteration == 0:
-                _, los, summary_str = sess.run((train_step, total_loss, summary_op),
-                        feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
                 tpb = (time.time() - start_time) / logging_iteration
                 print("step {0}, loss = {1} ({2} sec/batch)".format(i, los, tpb))
-                summary_writer.add_summary(summary_str, global_step=i)
                 if i%1000 == 0:
                     saver.save(sess, CHECKPOINT_FILE)
                 start_time = time.time()
-            else:
-                sess.run((train_step, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
 
 def test():
     b = batch.Single(CORPUS)
