@@ -59,7 +59,6 @@ def generative_decoder_layer(cell, initial_state, embedding_matrix, eos_matrix):
         outputs = []
         output_words = []
         inp = tf.reshape(eos_matrix, [BATCH_SIZE, -1])
-        print(list(map(lambda x:x.name,tf.all_variables())))
         for i in range(MAX_GENERATION_SIZE):
             output, state = cell(inp, state)
 
@@ -103,7 +102,7 @@ def varec(words_placeholder, lens, embedding, style_fraction, generation_state):
     with tf.variable_scope('decoder'):
         outputs, decoder_cell = decoder_layer(z, word_vectors, lens, eos_matrix, lstm_size)
 
-        generative_outputs, generative_output_words = generative_decoder_layer(decoder_cell, z, embedding_matrix, eos_matrix)
+        generative_outputs, generative_output_words = generative_decoder_layer(decoder_cell, generation_state, embedding_matrix, eos_matrix)
 
     with tf.name_scope('loss_subtotal'):
         # Compute probabilities

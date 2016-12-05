@@ -34,7 +34,7 @@ with tf.name_scope('inputs'):
     words = tf.placeholder(tf.int32, [BATCH_SIZE, None], name = 'words')
     lens = tf.placeholder(tf.int32, [BATCH_SIZE], name = 'lengths')
     kl_weight = tf.placeholder(tf.float32, name='kl_weight')
-    generation_state = tf.placeholder(tf.int32, [BATCH_SIZE, None], name='sentence')
+    generation_state = tf.placeholder(tf.float32, [BATCH_SIZE, None], name='sentence')
 
 with tf.variable_scope('shared'):
     (mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs, generative_outputs, generative_output_words) = varec(words, lens, embedding, style_fraction, generation_state)
