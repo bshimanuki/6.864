@@ -42,6 +42,7 @@ with tf.variable_scope('shared'):
 with tf.name_scope('loss_overall'):
     total_loss = mean_loss + kl_weight*mean_KLD
 
+tf.scalar_summary('KL weight', kl_weight)
 tf.scalar_summary('KLD', mean_KLD)
 tf.scalar_summary('NLL', mean_loss)
 tf.scalar_summary('loss', total_loss)
