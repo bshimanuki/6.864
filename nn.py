@@ -80,9 +80,12 @@ def train():
             for i in range(epoch_length):
                 next_batch = b.next_batch(BATCH_SIZE)
                 sentences, lengths = embedding.word_indices(next_batch, eos=True)
-                _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run((train_step, total_loss, outputs, mu_style, mu_content, summary_op),
-                        feed_dict={words:sentences, lens:lengths, kl_weight:kl_sigmoid(i)})
-                summary_writer.add_summary(summary_str, global_step=i)
+                global_step = i + epoch_length * epoch
+                klw = kl_sigmoid(global_step)
+                _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
+                        (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
+                        feed_dict={words:sentences, lens:lengths, kl_weight:klw})
+                summary_writer.add_summary(summary_str, global_step=global_step)
                 if i%logging_iteration == 0:
                     tpb = (time.time() - start_time) / logging_iteration
                     print("step {0}, training loss = {1} ({2} sec/batch)".format(i, los, tpb))
