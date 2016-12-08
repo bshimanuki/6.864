@@ -4,7 +4,7 @@ from sklearn.linear_model import LogisticRegression
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO
 
 vocab = set()
-#WYC-WEB
+#WYC-WEB 0.997 accuracy
 sent_pairs = get_pairs('WYC', 'WEB')
 
 # ASV-CEB 0.998 accuracy
