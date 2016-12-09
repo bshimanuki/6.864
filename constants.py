@@ -9,3 +9,6 @@ CHECKPOINT_FILE = 'output/temp.ckpt'
 TRAIN_DIR = 'train'
 TB_LOGS_DIR = 'tb_logs'
 NUM_EPOCHS = 75
+TRAIN_RATIO = 0.7
+VALIDATION_RATIO = 0.15
+TEST_RATIO = 0.15
