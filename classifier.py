@@ -1,19 +1,26 @@
 from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
+from data.bible.training_data import read_bible
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO
 
 vocab = set()
 #WYC-WEB 0.997 accuracy
-sent_pairs = get_pairs('WYC', 'WEB')
+#sent_pairs = get_pairs('WYC', 'WEB')
 
 # ASV-CEB 0.998 accuracy
 #sent_pairs = get_pairs('ASV', 'CEB')
-sent_pairs = [[translation.split(' ') for translation in sentence] for sentence in sent_pairs]
 
-for sentence in sent_pairs:
-    for translation in sentence:
-        for word in translation:
+sentences = read_bible()
+all_translations = []
+for key, val in sentences.items():
+    all_translations.append(val)
+
+all_translations = [[sentence.split(' ') for sentence in translation] for translation in all_translations]
+
+for translation in all_translations:
+    for sentence in translation:
+        for word in sentence:
             vocab.add(word)
 
 num_words = len(vocab)
@@ -22,17 +29,18 @@ word_to_index = {}
 for i, word in enumerate(vocab):
     word_to_index[word] = i
 
+print(num_words)
 features = []
 labels = []
-for sentence in sent_pairs:
-    for i, translation in enumerate(sentence):
+for i, translation in enumerate(all_translations):
+    for sentence in translation:
         unigram_features = [0.0]*num_words
-        for word in translation:
+        for word in sentence:
             if word in vocab:
                 unigram_features[word_to_index[word]] = 1.0
         features.append(unigram_features)
         labels.append(i)
-
+print(labels[0:10])
 train_index = int(num_words * TRAIN_RATIO)
 validation_index = int(num_words * VALIDATION_RATIO) + train_index
 
