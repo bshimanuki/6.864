@@ -1,6 +1,6 @@
-from nirv import short
+from nirv import pairs, sentences
 
-CORPUS = short
+CORPUS = sentences
 BATCH_SIZE = 60
 MAX_GENERATION_SIZE = 20
 KL_TRANSLATE = 30000

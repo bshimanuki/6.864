@@ -107,8 +107,10 @@ def train():
                     print('with correct: ' + embedding.embedding_to_sentence(_outputs[0]))
                     print('using prev:   ' + embedding.embedding_to_sentence(gen_output))
             # Validation loss
-            sentences, lengths = embedding.word_indices(b.random_validation_batch(BATCH_SIZE), eos=True)
-            los = sess.run(total_loss, feed_dict={words:sentences, lens:lengths, kl_weight: 0})
+            batch1, batch2 = b.random_validation_batch(BATCH_SIZE)
+            sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
+            sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
+            los = sess.run(total_loss, feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight: 0})
             print("Epoch {0} validation loss: {1}".format(epoch, los))
             if epoch%5 == 0:
                 saver.save(sess, CHECKPOINT_FILE)

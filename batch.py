@@ -3,7 +3,7 @@ from itertools import chain
 
 class Single:
     def __init__(self, corpus, train_ratio=0.8):
-        a = list(" ".join(sent) for sent in corpus)
+        a = list(corpus)
         random.shuffle(a)
         t = int(train_ratio * len(a))
         self.a = a[:t]

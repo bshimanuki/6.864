@@ -1,6 +1,6 @@
 from collections import Counter
 
-from data.bible.training_data import read_bible
+from data.bible.training_data import read_bible, get_corresponding_sentences_in_bible
 from embedder import word2vec
 
 nirv = read_bible()['NIRV']
@@ -20,8 +20,10 @@ common = list(filter(lambda x: all(map(lambda y:y in word2vec and word2vec.vocab
 
 # print(sorted(common, key=len)[-1])
 
-short = list(filter(lambda x: len(x) <= SENT_LEN, common))
+short = list(" ".join(sent) for sent in filter(lambda x: len(x) <= SENT_LEN, common))
 
 # print('Vocab size:', len(set([w for s in short for w in s])))
 # print('Sentence lengths:', Counter(map(len, short)))
 # print(len(sents), len(common), len(short))
+pairs = get_corresponding_sentences_in_bible('NIV', 'NIRV')
+sentences = list(sum(pairs, ()))
