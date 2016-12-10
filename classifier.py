@@ -1,5 +1,5 @@
 from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
-from data.bible.training_data import get_corresponding_sentences_in_bible_multiple
+from data.bible.training_data import get_corresponding_sentences_in_book_multiple_by_title
 from scipy import sparse
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -9,12 +9,42 @@ from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
 vocab = set()
 
 # WYC-WEB 0.97 accuracy
-trans_pairs = get_pairs('WYC', 'WEB')
+# trans_pairs = get_pairs('WYC', 'WEB')
 
 # ASV-CEB 0.95 accuracy
 # trans_pairs = get_pairs('ASV', 'CEB')
 
-# trans_pairs = get_corresponding_sentences_in_bible_multiple(['ASV', 'CEB', 'WYC', 'WEB'])
+used_translation_versions = [
+        'ASV',
+        'BBE',
+        'CEB',
+        'CJB',
+        'CSB',
+        'DBY',
+        'ESV',
+        'GNT',
+        'GW',
+        'JUB',
+        'KJV',
+        'LEB',
+        'MSG',
+        'NAS',
+        'NCV',
+        'NIRV',
+        'NIV',
+        'NKJV',
+        'NLT',
+        'NRS',
+        'RHE',
+        'RSV',
+        'TMB',
+        'WBT',
+        'WEB',
+        'WYC',
+        'YLT',
+]
+
+trans_pairs = get_corresponding_sentences_in_book_multiple_by_title('Genesis', used_translation_versions)
 trans_pairs = [[translation.split(' ') for translation in pair] for pair in trans_pairs]
 
 for trans_pair in trans_pairs:
