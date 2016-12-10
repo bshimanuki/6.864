@@ -31,21 +31,28 @@ kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
 with tf.name_scope('inputs'):
     # Placeholder for the inputs in a given iteration
     # NOTE: words is padded! Never add eos to the end of words!
-    words = tf.placeholder(tf.int32, [BATCH_SIZE, None], name = 'words')
-    lens = tf.placeholder(tf.int32, [BATCH_SIZE], name = 'lengths')
+    words1 = tf.placeholder(tf.int32, [BATCH_SIZE, None], name='words1')
+    lens1 = tf.placeholder(tf.int32, [BATCH_SIZE], name='lengths1')
+    words2 = tf.placeholder(tf.int32, [BATCH_SIZE, None], name='words2')
+    lens2 = tf.placeholder(tf.int32, [BATCH_SIZE], name='lengths2')
     kl_weight = tf.placeholder(tf.float32, name='kl_weight')
     generation_state = tf.placeholder(tf.float32, [BATCH_SIZE, None], name='sentence')
 
-with tf.variable_scope('shared'):
-    (mean_loss, mean_KLD, mu_style, mu_content, outputs, generative_outputs, _) = varec(words, lens, embedding, style_fraction, generation_state)
+with tf.variable_scope('shared') as scope:
+    (loss1, kld1, mu_style, mu_content, outputs, generative_outputs, z) = varec(words1, lens1, embedding, style_fraction, generation_state)
+    scope.reuse_variables()
+    (loss2, kld2, _, mu_content2, _, _, z) = varec(words2, lens2, embedding, style_fraction, generation_state, summary=False)
 
 with tf.name_scope('loss_overall'):
-    total_loss = mean_loss + kl_weight*mean_KLD
+    total_loss1 = loss1 + kl_weight*kld1
+    total_loss2 = loss2 + kl_weight*kld2
+    z_penalty = tf.reduce_mean(tf.square(mu_content2-mu_content))
+    total_loss = loss1 + loss2 + z_penalty
 
-tf.scalar_summary('KL weight', kl_weight)
-tf.scalar_summary('KLD', mean_KLD)
-tf.scalar_summary('NLL', mean_loss)
-tf.scalar_summary('loss', total_loss)
+tf.scalar_summary('Loss1', total_loss1)
+tf.scalar_summary('Loss2', total_loss2)
+tf.scalar_summary('Content difference penalty', z_penalty)
+tf.scalar_summary('Total loss', total_loss)
 
 train_step = tf.train.AdamOptimizer(0.0001).minimize(total_loss)
 
@@ -63,7 +70,7 @@ def train():
     else:
         print("Tensorboard logs will be saved to '%s'" % tensorboard_prefix)
 
-    b = batch.Single(CORPUS)
+    b = batch.Pairs(CORPUS)
     epoch_length = b.num_training() // BATCH_SIZE
     summary_op = tf.merge_all_summaries()
     with tf.Session() as sess:
@@ -79,13 +86,14 @@ def train():
         for epoch in range(1, NUM_EPOCHS+1):
             start_time = time.time()
             for i in range(epoch_length):
-                next_batch = b.next_batch(BATCH_SIZE)
-                sentences, lengths = embedding.word_indices(next_batch, eos=True)
+                batch1, batch2 = b.next_batch(BATCH_SIZE)
+                sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
+                sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
                 global_step = i + epoch_length * epoch
-                klw = kl_sigmoid(global_step)
+                klw = .1 + .9 * kl_sigmoid(global_step)
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
                         (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
-                        feed_dict={words:sentences, lens:lengths, kl_weight:klw})
+                        feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight:klw})
                 summary_writer.add_summary(summary_str, global_step=global_step)
                 if i%logging_iteration == 0:
                     tpb = (time.time() - start_time) / logging_iteration
@@ -95,7 +103,7 @@ def train():
                     mu = np.concatenate((_mu_style, _mu_content), axis=1)
                     gen_outputs = sess.run(generative_outputs, feed_dict={generation_state:mu})
                     gen_output = np.asarray(gen_outputs)[:,0,:]
-                    print((str(i) + ':' + ' '*12)[:14] + next_batch[0])
+                    print((str(i) + ':' + ' '*12)[:14] + batch1[0])
                     print('with correct: ' + embedding.embedding_to_sentence(_outputs[0]))
                     print('using prev:   ' + embedding.embedding_to_sentence(gen_output))
             # Validation loss

@@ -4,25 +4,27 @@ from constants import BATCH_SIZE, MAX_GENERATION_SIZE
 import embedder
 
 
-def weight_variable(shape, name):
+def weight_variable(shape, name, summary):
     assert name is not None
     full_name = '%s/weight' % (name)
     weight = tf.get_variable(full_name, initializer=tf.truncated_normal(shape, stddev=0.0001))
-    tf.histogram_summary(full_name, weight)
+    if summary:
+        tf.histogram_summary(full_name, weight)
     return weight
 
 
-def bias_variable(shape, name):
+def bias_variable(shape, name, summary):
     assert name is not None
     full_name = '%s/bias' % (name)
     bias = tf.get_variable(full_name, initializer=tf.zeros(shape=shape))
-    tf.histogram_summary(full_name, bias)
+    if summary:
+        tf.histogram_summary(full_name, bias)
     return bias
 
 
-def ff_layer(input_layer, input_depth, output_depth, name=None):
-    output = tf.matmul(input_layer, weight_variable([input_depth, output_depth], name=name)) +\
-        bias_variable([output_depth], name=name)
+def ff_layer(input_layer, input_depth, output_depth, name=None, summary=True):
+    output = tf.matmul(input_layer, weight_variable([input_depth, output_depth], name, summary)) +\
+        bias_variable([output_depth], name, summary)
     return output
 
 
@@ -71,7 +73,7 @@ def generative_decoder_layer(cell, initial_state, embedding_matrix, eos_matrix):
         return outputs, output_words
 
 
-def varec(words_placeholder, lens, embedding, style_fraction, generation_state):
+def varec(words_placeholder, lens, embedding, style_fraction, generation_state, summary=True):
     num_features = embedding.get_num_features()
     num_words = embedding.get_vocabulary_size()
     lstm_size = num_features
@@ -88,10 +90,10 @@ def varec(words_placeholder, lens, embedding, style_fraction, generation_state):
         with tf.name_scope('encoder_rnn'):
             encoder_state = encoder_layer(word_vectors, lens, lstm_size)
 
-        mu_style = ff_layer(encoder_state, 2*lstm_size, style_size, name='mu_style')
-        mu_content = ff_layer(encoder_state, 2*lstm_size, content_size, name='mu_content')
-        logvar_style = ff_layer(encoder_state, 2*lstm_size, style_size, name='logvar_style')
-        logvar_content = ff_layer(encoder_state, 2*lstm_size, content_size, name='logvar_content')
+        mu_style = ff_layer(encoder_state, 2*lstm_size, style_size, name='mu_style', summary=summary)
+        mu_content = ff_layer(encoder_state, 2*lstm_size, content_size, name='mu_content', summary=summary)
+        logvar_style = ff_layer(encoder_state, 2*lstm_size, style_size, name='logvar_style', summary=summary)
+        logvar_content = ff_layer(encoder_state, 2*lstm_size, content_size, name='logvar_content', summary=summary)
 
         mu = tf.concat(1, [mu_style, mu_content])
         logvar = tf.concat(1, [logvar_style, logvar_content])
@@ -119,7 +121,7 @@ def varec(words_placeholder, lens, embedding, style_fraction, generation_state):
         KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
         mean_KLD = tf.reduce_mean(KLD_word)
 
-    return mean_loss, mean_KLD, mu_style, mu_content, logvar_style, logvar_content, outputs, generative_outputs, generative_output_words
+    return mean_loss, mean_KLD, mu_style, mu_content, outputs, generative_outputs, z
 
 def tf_eos_matrix(embedding):
     return tf.reshape(

@@ -1,6 +1,7 @@
 /output
 /train
 /tb_logs
+word2vec.pickle
 
 *.pyc
 

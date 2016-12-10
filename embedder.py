@@ -9,7 +9,6 @@ import numpy as np
 from word2vec import Word2Vec
 from data.bible.book_titles import book_titles as bible_books
 
-OUTPUT = 'output'
 BOS = '<BOS>'
 EOS = '<EOS>'
 
@@ -62,7 +61,7 @@ def process_bible(bos=False, eos=False):
     return Iterator()
 
 try:
-    word2vec = Word2Vec.load(OUTPUT + '/word2vec.pickle')
+    word2vec = Word2Vec.load('word2vec.pickle')
     print("Found and loaded word embedding.")
 except FileNotFoundError:
     wd = 200
@@ -70,5 +69,5 @@ except FileNotFoundError:
     word2vec = Word2Vec(process_bible(eos=True),
             size=wd)
     #word2vec.normalize()
-    word2vec.save(OUTPUT + '/word2vec.pickle')
+    word2vec.save('word2vec.pickle')
 
