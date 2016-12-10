@@ -1,5 +1,6 @@
 from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
 from data.bible.training_data import get_corresponding_sentences_in_bible_multiple
+from scipy import sparse
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -47,9 +48,19 @@ print("\tLabels: {}".format(np.array(labels)))
 train_val_feature_vectors, test_feature_vectors, train_val_labels, test_labels = train_test_split(
     feature_vectors, labels, test_size=TEST_RATIO, random_state=RANDOM_SEED
 )
+
+del feature_vectors
+del labels
+test_feature_vectors = sparse.csr_matrix(test_feature_vectors)
+
 train_feature_vectors, validation_feature_vectors, train_labels, validation_labels = train_test_split(
     train_val_feature_vectors, train_val_labels, test_size=(VALIDATION_RATIO)/(VALIDATION_RATIO+TRAIN_RATIO), random_state=RANDOM_SEED
 )
+
+train_val_feature_vectors = sparse.csr_matrix(train_val_feature_vectors)
+train_feature_vectors = sparse.csr_matrix(train_feature_vectors)
+validation_feature_vectors = sparse.csr_matrix(validation_feature_vectors)
+
 
 print("Split dataset into training, test and validation sets.")
 print("Training size: {}".format(np.shape(train_feature_vectors)))
@@ -86,7 +97,7 @@ for C_cur in C_RANGE:
 print("Done training and validating. Best C found: {}, Best accuracy on validation: {}".format(best_C, best_proportion_matched))
 
 classifier = LogisticRegression(C=best_C)
-classifier.fit(np.concatenate((train_feature_vectors, validation_feature_vectors)), np.concatenate((train_labels, validation_labels)))
+classifier.fit(train_val_feature_vectors, train_val_labels)
 predicted_test_labels = classifier.predict(test_feature_vectors)
 (num_matches, accuracy) = check_matches(test_labels, predicted_test_labels)
 print("Accuracy on test {}".format(accuracy))
