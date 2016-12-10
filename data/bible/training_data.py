@@ -106,3 +106,33 @@ def get_corresponding_sentences_in_bible(trans1, trans2):
         pairs = get_corresponding_sentences_in_book(book_output, trans1, trans2)
         corresponding_sentences.extend(pairs)
     return corresponding_sentences
+
+
+def get_corresponding_sentences_in_book_multiple(book_output, translations):
+    """
+    Gets corresponding sentences for a given book of the bible for two specified translations.
+
+    :param book_output:
+    :param translations: e.g. ['WYC', 'WEB']
+    :return: List of tuples of the verse text, with the first translation first.
+    """
+    corresponding_sentences = list()
+    for chapter_output in book_output.values():
+        for verse_output in chapter_output.values():
+            if all(t in verse_output for t in translations):
+                # TODO: consider whether we want to throw away translations where the verse is empty.
+                corresponding_sentences.append([verse_output[t] for t in translations])
+    return corresponding_sentences
+
+def get_corresponding_sentences_in_bible_multiple(translations):
+    """
+    Get corresponding sentences in all books of the bible for all translations.
+    :param translations:
+    :return:
+    """
+    corresponding_sentences = []
+    for book_title in book_titles:
+        book_output = pickle.load(open(get_path("cache/by_book_filtered/{0}.pickle".format(book_title)), "rb"))
+        pairs = get_corresponding_sentences_in_book_multiple(book_output, translations)
+        corresponding_sentences.extend(pairs)
+    return corresponding_sentences
