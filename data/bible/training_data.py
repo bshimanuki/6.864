@@ -118,9 +118,9 @@ def get_corresponding_sentences_in_book_multiple(book_output, translations, trim
         for verse_output in chapter_output.values():
             if all(t in verse_output for t in translations):
                 # TODO: consider whether we want to throw away translations where the verse is empty.
-                sents = [verse_output[t] for t in translations]
+                sents = tuple([verse_output[t] for t in translations])
                 if trim:
-                    sents = list(map(filter_sentence, sents))
+                    sents = tuple(map(filter_sentence, sents))
                 corresponding_sentences.append(sents)
     return corresponding_sentences
 
