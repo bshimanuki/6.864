@@ -4,6 +4,7 @@ from itertools import chain
 class Single:
     def __init__(self, corpus, train_ratio=0.8):
         a = list(corpus)
+        random.seed(1337)
         random.shuffle(a)
         t = int(train_ratio * len(a))
         self.a = a[:t]
@@ -28,6 +29,7 @@ class Single:
 class Pairs:
     def __init__(self, pair_corpus, train_ratio=0.9):
         a = list(pair_corpus)
+        random.seed(1337)
         random.shuffle(a)
         t = int(train_ratio * len(a))
         self.a = a[:t]

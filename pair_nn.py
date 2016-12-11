@@ -10,7 +10,9 @@ from w2vEmbedding import W2VEmbedding
 from onehotEmbedding import OnehotEmbedding
 from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS
 from nn_util import varec
-from util import sigmoid
+
+from nirv import pairs
+CORPUS = pairs
 
 import argparse
 
@@ -25,8 +27,6 @@ else:
     embedding = OnehotEmbedding(word2vec)
 
 style_fraction = .01
-
-kl_sigmoid = sigmoid(KL_PARAM, KL_TRANSLATE)
 
 with tf.name_scope('inputs'):
     # Placeholder for the inputs in a given iteration
@@ -46,8 +46,8 @@ with tf.variable_scope('shared') as scope:
 with tf.name_scope('loss_overall'):
     total_loss1 = loss1 + kl_weight*kld1
     total_loss2 = loss2 + kl_weight*kld2
-    z_penalty = tf.reduce_mean(tf.square(mu_content2-mu_content))
-    total_loss = loss1 + loss2 + z_penalty
+    z_penalty = tf.reduce_sum(tf.square(mu_content2-mu_content))
+    total_loss = total_loss1 + total_loss2 + z_penalty
 
 tf.scalar_summary('Loss1', total_loss1)
 tf.scalar_summary('Loss2', total_loss2)
@@ -90,7 +90,7 @@ def train():
                 sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
                 sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
                 global_step = i + epoch_length * epoch
-                klw = .1 + .9 * kl_sigmoid(global_step)
+                klw = 1
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
                         (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
                         feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight:klw})

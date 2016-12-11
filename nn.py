@@ -8,9 +8,12 @@ import batch
 from embedder import word2vec
 from w2vEmbedding import W2VEmbedding
 from onehotEmbedding import OnehotEmbedding
-from constants import CORPUS, BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS
+from constants import BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS
 from nn_util import varec
 from util import sigmoid
+
+from nirv import sentences
+CORPUS = sentences
 
 import argparse
 
@@ -74,15 +77,14 @@ def train():
             print("Initializing parameters")
             sess.run(tf.initialize_all_variables())
         summary_writer = tf.train.SummaryWriter(tensorboard_prefix, sess.graph)
-        logging_iteration = 50
-        output_iteration = 1000
+        logging_iteration = 100
+        output_iteration = 400
         for epoch in range(1, NUM_EPOCHS+1):
             start_time = time.time()
             for i in range(epoch_length):
                 next_batch = b.next_batch(BATCH_SIZE)
                 sentences, lengths = embedding.word_indices(next_batch, eos=True)
-                global_step = i + epoch_length * epoch
-                klw = kl_sigmoid(global_step)
+                klw = kl_sigmoid(epoch) / 2
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
                         (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
                         feed_dict={words:sentences, lens:lengths, kl_weight:klw})
@@ -95,9 +97,11 @@ def train():
                     mu = np.concatenate((_mu_style, _mu_content), axis=1)
                     gen_outputs = sess.run(generative_outputs, feed_dict={generation_state:mu})
                     gen_output = np.asarray(gen_outputs)[:,0,:]
-                    print((str(i) + ':' + ' '*12)[:14] + next_batch[0])
+                    print()
+                    print('original:     ' + next_batch[0])
                     print('with correct: ' + embedding.embedding_to_sentence(_outputs[0]))
                     print('using prev:   ' + embedding.embedding_to_sentence(gen_output))
+                    print()
             # Validation loss
             sentences, lengths = embedding.word_indices(b.random_validation_batch(BATCH_SIZE), eos=True)
             los = sess.run(total_loss, feed_dict={words:sentences, lens:lengths, kl_weight: 0})

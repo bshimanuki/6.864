@@ -1,5 +1,5 @@
 from scipy.special import expit
 
 
-def sigmoid(steepness, midpoint):
-    return lambda x: expit(steepness * (x - midpoint))
+def sigmoid(ramp_length, midpoint):
+    return lambda x: expit((x - midpoint) / ramp_length)
