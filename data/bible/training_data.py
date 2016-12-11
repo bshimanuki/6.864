@@ -13,12 +13,15 @@ DEFAULT_TRIM = True
 def get_path(rel_path):
     return os.path.join(os.path.dirname(__file__), rel_path)
 
+def sentence_is_none(sent):
+    return sent is None or sent == 'none' or sent == '...'
+
 def filter_sentence(sent):
     return ' '.join(filter(lambda x: x not in {"`", "'", "``", "''"}, sent.split()))
 
 def read_bible(books=[], chapters=[], verses=[], translations=[],
         flatten_books=True, flatten_chapters=True, flatten_verses=True,
-        flatten_translations=False, trim=DEFAULT_TRIM):
+        flatten_translations=False, filter_none=True, trim=DEFAULT_TRIM):
     """Reads the bible verses and translations from the pickles, returning a list (if flatten_* are all True) or a recursive dict with the flatten_*=False as keys.
 
     Use this when you want lists of sentences. Use the get_corresponding_sentences_in_* when you want parallel sentences.
@@ -63,6 +66,8 @@ def read_bible(books=[], chapters=[], verses=[], translations=[],
                     output_v = output_c[verse]
                 for translation, sent in sorted(translations_dict.items()):
                     if translations and translation not in translations:
+                        continue
+                    if filter_none and sentence_is_none(sent):
                         continue
                     if flatten_translations:
                         key = None
@@ -119,6 +124,8 @@ def get_corresponding_sentences_in_book_multiple(book_output, translations, trim
             if all(t in verse_output for t in translations):
                 # TODO: consider whether we want to throw away translations where the verse is empty.
                 sents = tuple([verse_output[t] for t in translations])
+                if any(map(sentence_is_none, sents)):
+                    continue
                 if trim:
                     sents = tuple(map(filter_sentence, sents))
                 corresponding_sentences.append(sents)
