@@ -82,8 +82,8 @@ def train():
             sess.run(tf.initialize_all_variables())
         summary_writer = tf.train.SummaryWriter(tensorboard_prefix, sess.graph)
         logging_iteration = 50
-        output_iteration = 1000
-        for epoch in range(1, NUM_EPOCHS+1):
+        output_iteration = 500
+        for epoch in range(NUM_EPOCHS):
             start_time = time.time()
             for i in range(epoch_length):
                 batch1, batch2 = b.next_batch(BATCH_SIZE)
@@ -94,25 +94,29 @@ def train():
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
                         (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
                         feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight:klw})
-                summary_writer.add_summary(summary_str, global_step=global_step)
-                if i%logging_iteration == 0:
+                if global_step%logging_iteration == 0:
+                    summary_writer.add_summary(summary_str, global_step=global_step)
                     tpb = (time.time() - start_time) / logging_iteration
-                    print("step {0}, training loss = {1} ({2} sec/batch)".format(i, los, tpb))
+                    print("step {0}, training loss = {1} ({2} sec/batch)".format(global_step, los, tpb))
                     start_time = time.time()
-                if i%output_iteration == 0:
+                if global_step%output_iteration == 0:
                     mu = np.concatenate((_mu_style, _mu_content), axis=1)
                     gen_outputs = sess.run(generative_outputs, feed_dict={generation_state:mu})
                     gen_output = np.asarray(gen_outputs)[:,0,:]
-                    print((str(i) + ':' + ' '*12)[:14] + batch1[0])
+                    print()
+                    print('original      ' + batch1[0])
                     print('with correct: ' + embedding.embedding_to_sentence(_outputs[0]))
                     print('using prev:   ' + embedding.embedding_to_sentence(gen_output))
+                    print()
             # Validation loss
             batch1, batch2 = b.random_validation_batch(BATCH_SIZE)
             sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
             sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
             los = sess.run(total_loss, feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight: 0})
+            print()
             print("Epoch {0} validation loss: {1}".format(epoch, los))
-            if epoch%5 == 0:
+            print()
+            if epoch%5 == 4:
                 saver.save(sess, CHECKPOINT_FILE)
 
 
