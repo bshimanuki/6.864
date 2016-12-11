@@ -84,6 +84,7 @@ def train():
             for i in range(epoch_length):
                 next_batch = b.next_batch(BATCH_SIZE)
                 sentences, lengths = embedding.word_indices(next_batch, eos=True)
+                global_step = epoch * epoch_length + i
                 klw = kl_sigmoid(epoch) / 2
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
                         (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
