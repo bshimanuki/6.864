@@ -2,7 +2,7 @@ import random
 from itertools import chain
 
 class Single:
-    def __init__(self, corpus, train_ratio=0.8):
+    def __init__(self, corpus, train_ratio=0.9):
         a = list(corpus)
         random.seed(1337)
         random.shuffle(a)
