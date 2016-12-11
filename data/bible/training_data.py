@@ -14,7 +14,7 @@ def get_path(rel_path):
     return os.path.join(os.path.dirname(__file__), rel_path)
 
 def sentence_is_none(sent):
-    return sent is None or sent == 'none' or sent == '...'
+    return not sent or sent == 'none' or sent == '...' or sent == '-'
 
 def filter_sentence(sent):
     return ' '.join(filter(lambda x: x not in {"`", "'", "``", "''"}, sent.split()))

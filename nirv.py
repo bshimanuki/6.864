@@ -3,7 +3,7 @@ from collections import Counter
 from data.bible.training_data import read_bible, get_corresponding_sentences_in_bible
 from embedder import word2vec
 
-nirv = read_bible()['NIRV']
+nirv = read_bible(filter_none=True)['NIRV']
 sents = []
 s = []
 for sent in nirv:
@@ -31,7 +31,7 @@ sentences = list(sum(pairs, ()))
 
 short_pairs = list(filter(lambda x:all(map(lambda y: len(y.split()) <= PAIR_SENT_LEN, x)), pairs))
 
-niv = read_bible(translations=['NIV'], flatten_translations=True)
-all_trans = read_bible(flatten_translations=True)
+niv = read_bible(translations=['NIV'], flatten_translations=True, filter_none=True)
+all_trans = read_bible(flatten_translations=True, filter_none=True)
 sentence_lengths_niv = Counter(map(lambda x: len(x.split()), niv))
 sentence_lengths_all = Counter(map(lambda x: len(x.split()), all_trans))
