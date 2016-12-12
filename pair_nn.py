@@ -8,7 +8,7 @@ import batch
 from embedder import word2vec
 from w2vEmbedding import W2VEmbedding
 from onehotEmbedding import OnehotEmbedding
-from constants import BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS
+from constants import BATCH_SIZE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS, STYLE_FRACTION
 from nn_util import varec
 from util import merge_dicts
 
@@ -59,7 +59,7 @@ with tf.name_scope('loss_overall'):
         tf.reduce_mean(tf.abs(d["style0"]-d["style1"])) -\
         tf.reduce_mean(tf.abs(d["style2"]-d["style3"]))
     z_penalty = content_penalty
-    z_penalty = .99*content_penalty + .01*style_penalty
+    z_penalty = (1-STYLE_FRACTION)*content_penalty + STYLE_FRACTION*style_penalty
     total_loss += 10*z_penalty
 
     tf.scalar_summary('Total KLD', total_kld)
