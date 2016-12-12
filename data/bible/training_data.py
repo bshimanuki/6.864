@@ -23,7 +23,9 @@ def filter_sentence(sent):
 def read_bible(books=[], chapters=[], verses=[], translations=[],
         flatten_books=True, flatten_chapters=True, flatten_verses=True,
         filter_none=True, trim=DEFAULT_TRIM):
-    """Reads the bible verses and translations from the pickles, returning a list (if flatten_* are all True) or a recursive dict with the flatten_*=False as keys.
+    """Reads the bible verses and translations from the pickles, returning a recursive dict. Keys marked by flatten_*=False are prepended to the following key(s) as a tuple.
+
+    For examples, with flatten_books=True, flatten_chapters=True, flatten_verses=False, verses will be keyed like [('Genesis', 1, 1)]['NIV'].
 
     Use this when you want lists of sentences. Use the get_corresponding_sentences_in_* when you want parallel sentences.
 
