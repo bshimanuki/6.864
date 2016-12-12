@@ -39,16 +39,16 @@ with tf.name_scope('inputs'):
     generation_state = tf.placeholder(tf.float32, [BATCH_SIZE, None], name='sentence')
 
 with tf.variable_scope('shared') as scope:
-    (loss1, kld1, mu_style, mu_content, outputs, generative_outputs, _) = varec(words1, lens1, embedding, style_fraction, generation_state)
+    (loss1, kld1, mu_style1, mu_content1, outputs1, generative_outputs1, z1) = varec(words1, lens1, embedding, style_fraction, generation_state)
     scope.reuse_variables()
-    (loss2, kld2, _, mu_content2, _, _, _) = varec(words2, lens2, embedding, style_fraction, generation_state, summary=False)
+    (loss2, kld2, mu_style2, mu_content2, outputs2, generative_outputs2, z2) = varec(words2, lens2, embedding, style_fraction, generation_state, summary=False)
 
 with tf.name_scope('loss_overall'):
     weighted_loss1 = loss1 + kl_weight*kld1
     weighted_loss2 = loss2 + kl_weight*kld2
     total_kld = kld1 + kld2
     total_nll = loss1 + loss2
-    z_penalty = tf.reduce_sum(tf.square(mu_content2-mu_content))
+    z_penalty = tf.reduce_sum(tf.square(mu_content2-mu_content1))
     total_loss = weighted_loss1 + weighted_loss2 + z_penalty
 
 tf.scalar_summary('Loss1', weighted_loss1)
@@ -96,7 +96,7 @@ def train():
                 global_step = i + epoch_length * epoch
                 klw = .2
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run(
-                        (train_step, total_loss, outputs, mu_style, mu_content, summary_op),
+                        (train_step, total_loss, outputs, mu_style, mu_content1, summary_op),
                         feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight:klw})
                 if global_step%logging_iteration == 0:
                     summary_writer.add_summary(summary_str, global_step=global_step)
@@ -125,7 +125,7 @@ def train():
 
 
 def test():
-    b = batch.Single(CORPUS)
+    b = batch.Pairs(CORPUS)
     with tf.Session() as sess:
         saver.restore(sess, CHECKPOINT_FILE)
         bat = b.next_batch(BATCH_SIZE)
@@ -137,4 +137,23 @@ def test():
         word_sequence = embedding.embedding_to_sentence(output[0])
         print(word_sequence)
 
-train()
+def get_hidden():
+    b = batch.Pairs(CORPUS)
+    epoch_length = int(b.num_training()/BATCH_SIZE)
+    with tf.Session() as sess:
+        saver.restore(sess, CHECKPOINT_FILE)
+        for i in range(epoch_length):
+            batch1, batch2 = b.next_batch(BATCH_SIZE)
+            sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
+            sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
+            hidden_repr1, hidden_repr2 = sess.run((mu_style1, mu_style2), feed_dict={words1:sentences1, lens1:lengths1, words2:sentences2, lens2:lengths2, kl_weight:0})
+            if i == 0:
+                hidden_states1 = hidden_repr1
+                hidden_states2 = hidden_repr2
+            else:
+                hidden_states1 = np.concatenate((hidden_states1, hidden_repr1), axis=0)
+                hidden_states2 = np.concatenate((hidden_states2, hidden_repr2), axis=0)
+    return hidden_states1, hidden_states2
+
+if __name__ == "__main__":
+    train()
