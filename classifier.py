@@ -6,9 +6,7 @@ import tensorflow as tf
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
-#from pair_nn import get_hidden
-def get_hidden():
-    return np.zeros((1000, 200)), np.ones((1000, 200))
+from pair_nn import get_hidden
 
 # WYC-WEB 0.97 accuracy
 #trans_pairs = get_pairs('WYC', 'WEB')

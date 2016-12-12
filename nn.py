@@ -40,7 +40,13 @@ with tf.name_scope('inputs'):
     generation_state = tf.placeholder(tf.float32, [BATCH_SIZE, None], name='sentence')
 
 with tf.variable_scope('shared'):
-    (mean_loss, mean_KLD, mu_style, mu_content, outputs, generative_outputs, _) = varec(words, lens, embedding, style_fraction, generation_state)
+    d = varec(words, lens, embedding, generation_state)
+    mean_loss = d["loss"]
+    mean_KLD = d["kld"]
+    mu_style = d["style"]
+    mu_content = d["content"]
+    outputs = d["outputs"]
+    generative_outputs = d["generative_outputs"]
 
 with tf.name_scope('loss_overall'):
     total_loss = mean_loss + kl_weight*mean_KLD
@@ -79,8 +85,8 @@ def train():
         summary_writer = tf.train.SummaryWriter(tensorboard_prefix, sess.graph)
         logging_iteration = 50
         output_iteration = 500
+        start_time = time.time()
         for epoch in range(NUM_EPOCHS):
-            start_time = time.time()
             for i in range(epoch_length):
                 next_batch = b.next_batch(BATCH_SIZE)
                 sentences, lengths = embedding.word_indices(next_batch, eos=True)
