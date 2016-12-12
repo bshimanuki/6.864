@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from constants import BATCH_SIZE, MAX_GENERATION_SIZE
+from constants import BATCH_SIZE, MAX_GENERATION_SIZE, STYLE_FRACTION
 import embedder
 
 
@@ -73,10 +73,11 @@ def generative_decoder_layer(cell, initial_state, embedding_matrix, eos_matrix):
         return outputs, output_words
 
 
-def varec(words_placeholder, lens, embedding, style_fraction, generation_state, summary=True):
+def varec(words_placeholder, lens, embedding, generation_state, summary=True):
     num_features = embedding.get_num_features()
     num_words = embedding.get_vocabulary_size()
     lstm_size = num_features
+    style_fraction = STYLE_FRACTION
     content_size = int(2*lstm_size * (1-style_fraction))
     style_size = 2*lstm_size - content_size
 
@@ -121,7 +122,13 @@ def varec(words_placeholder, lens, embedding, style_fraction, generation_state, 
         KLD_word = tf.div(KLD, tf.cast(lens+1, tf.float32))
         mean_KLD = tf.reduce_mean(KLD_word)
 
-    return mean_loss, mean_KLD, mu_style, mu_content, outputs, generative_outputs, z
+    return {"loss":                 mean_loss,
+            "kld":                  mean_KLD,
+            "style":                mu_style,
+            "content":              mu_content,
+            "outputs":              outputs,
+            "generative_outputs":   generative_outputs,
+            "z":                    z}
 
 def tf_eos_matrix(embedding):
     return tf.reshape(

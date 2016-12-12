@@ -79,7 +79,7 @@ class Quads:
         return out[0], out[1], out2[0], out2[1]
 
     def num_training(self):
-        return len(self.a) / 2
+        return len(self.a) // 2
 
 class QuadsAll:
     """Use for a quads from many translations."""
@@ -120,4 +120,4 @@ class QuadsAll:
 
     def num_training(self):
         """Approximate."""
-        return len(self.a) / 2
+        return len(self.a) // 2

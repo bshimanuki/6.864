@@ -6,9 +6,9 @@ import tensorflow as tf
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
-#from pair_nn import get_hidden
-def get_hidden():
-    return np.zeros((1000, 200)), np.ones((1000, 200))
+from pair_nn import get_hidden
+#def get_hidden():
+#    return np.zeros((1000, 200)), np.ones((1000, 200))
 
 # WYC-WEB 0.97 accuracy
 #trans_pairs = get_pairs('WYC', 'WEB')
@@ -149,8 +149,11 @@ def evaluate(trans1, trans2, type='unigram'):
 
         classifier = LogisticRegression(C=best_C)
         classifier.fit(train_val_feature_vectors, train_val_labels)
+        predicted_train_labels = classifier.predict(train_feature_vectors)
         predicted_test_labels = classifier.predict(test_feature_vectors)
-        (num_matches, accuracy) = check_matches(test_labels, predicted_test_labels)
-        print("Accuracy on test {}".format(accuracy))
+        (num_matches_train, accuracy_train) = check_matches(train_labels, predicted_train_labels)
+        (num_matches_test, accuracy_test) = check_matches(test_labels, predicted_test_labels)
+        print("Accuracy on train {}".format(accuracy_train))
+        print("Accuracy on test {}".format(accuracy_test))
 
 evaluate('NIRV', 'NIV', type='nn')
