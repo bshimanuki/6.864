@@ -4,7 +4,7 @@ from data.bible.training_data import read_bible, get_corresponding_sentences_in_
 from embedder import word2vec
 from constants import MAX_GENERATION_SIZE
 
-nirv = read_bible(filter_none=True)['NIRV']
+nirv = list(read_bible(translations=['NIRV']).values())
 sents = []
 s = []
 for sent in nirv:
@@ -31,7 +31,7 @@ pairs = list(filter(lambda x:all(map(lambda y: len(y.split()) <= MAX_GENERATION_
 sentences = list(sum(pairs, ()))
 
 """
-niv = read_bible(translations=['NIV'], flatten_translations=True, filter_none=True)
+niv = list(read_bible(translations=['NIV']).values())
 all_trans = read_bible(flatten_translations=True, filter_none=True)
 sentence_lengths_niv = Counter(map(lambda x: len(x.split()), niv))
 sentence_lengths_all = Counter(map(lambda x: len(x.split()), all_trans))

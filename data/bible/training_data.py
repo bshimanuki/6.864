@@ -1,4 +1,5 @@
 __author__ = 'vince_000'
+from collections import OrderedDict
 import pickle
 import os
 
@@ -21,7 +22,7 @@ def filter_sentence(sent):
 
 def read_bible(books=[], chapters=[], verses=[], translations=[],
         flatten_books=True, flatten_chapters=True, flatten_verses=True,
-        flatten_translations=False, filter_none=True, trim=DEFAULT_TRIM):
+        filter_none=True, trim=DEFAULT_TRIM):
     """Reads the bible verses and translations from the pickles, returning a list (if flatten_* are all True) or a recursive dict with the flatten_*=False as keys.
 
     Use this when you want lists of sentences. Use the get_corresponding_sentences_in_* when you want parallel sentences.
@@ -37,55 +38,57 @@ def read_bible(books=[], chapters=[], verses=[], translations=[],
     verses = set(verses)
     translations = set(translations)
 
-    output = {}
+    output = OrderedDict()
     for book in book_titles:
         if books and book not in books:
             continue
         if flatten_books:
             output_b = output
+            key_b = (book,)
         else:
-            output[book] = {}
+            output[book] = OrderedDict()
             output_b = output[book]
+            key_b = ()
         with open(get_path('cache/by_book_filtered/%s.pickle' % book), 'rb') as f:
             book_dict = pickle.load(f)
         for chapter, verses_dict in sorted(book_dict.items()):
             if chapters and chapter not in chapters:
                 continue
+            key_c = key_b + (chapter,) if key_b else chapter
             if flatten_chapters:
                 output_c = output_b
             else:
-                output_b[chapter] = {}
-                output_c = output_b[chapter]
+                output_b[key_c] = OrderedDict()
+                output_c = output_b[key_c]
+                key_c = ()
             for verse, translations_dict in sorted(verses_dict.items()):
                 if verses and verse not in verses:
                     continue
+                key_v = key_c + (verse,) if key_c else verse
                 if flatten_verses:
                     output_v = output_c
                 else:
-                    output_c[verse] = {}
-                    output_v = output_c[verse]
+                    output_c[key_v] = OrderedDict()
+                    output_v = output_c[key_v]
+                    key_v = ()
                 for translation, sent in sorted(translations_dict.items()):
                     if translations and translation not in translations:
                         continue
                     if filter_none and sentence_is_none(sent):
                         continue
-                    if flatten_translations:
-                        key = None
-                    else:
-                        key = translation
-                    if key not in output_v:
-                        output_v[key] = []
                     if trim:
                         sent = filter_sentence(sent)
-                    output_v[key].append(sent)
-                if None in output_v:
-                    output_c[verse] = output_v[None]
-            if None in output_c:
-                output_b[chapter] = output_c[None]
-        if None in output_b:
-            output[book] = output_b[None]
-    if None in output:
-        output = output[None]
+                    key_t = key_v + (translation,) if key_v else translation
+                    output_t = output_v
+                    output_t[key_t] = sent
+                if () in output_v:
+                    output_c[verse] = output_v[()]
+            if () in output_c:
+                output_b[chapter] = output_c[()]
+        if () in output_b:
+            output[book] = output_b[()]
+    if () in output:
+        output = output[()]
     return output
 
 def get_corresponding_sentences_in_book(book_output, trans1, trans2, trim=DEFAULT_TRIM):
