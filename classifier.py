@@ -2,7 +2,6 @@ import numpy as np
 from scipy import sparse
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
 
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
 from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
