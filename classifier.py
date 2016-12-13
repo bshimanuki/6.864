@@ -4,6 +4,7 @@ from scipy import sparse
 import numpy as np
 import tensorflow as tf
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
 from pair_nn import get_hidden
@@ -135,7 +136,7 @@ def evaluate(trans1, trans2, type='unigram'):
         C_RANGE = [1e-5, 1e-4, 1e-3, 0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5]
         """
         print("\tCurrent C: {}".format(C_cur))
-        classifier = LogisticRegression(C=C_cur)
+        classifier = SVC(C=C_cur, kernel='rbf')
         classifier.fit(train_feature_vectors, train_labels)
         predicted_validation_labels = classifier.predict(validation_feature_vectors)
         (num_matches, proportion_matched) = check_matches(validation_labels, predicted_validation_labels)
@@ -147,7 +148,7 @@ def evaluate(trans1, trans2, type='unigram'):
 
         print("Done training and validating. Best C found: {}, Best accuracy on validation: {}".format(best_C, best_proportion_matched))
 
-        classifier = LogisticRegression(C=best_C)
+        classifier = SVC(C=best_C, kernel='rbf')
         classifier.fit(train_val_feature_vectors, train_val_labels)
         predicted_train_labels = classifier.predict(train_feature_vectors)
         predicted_test_labels = classifier.predict(test_feature_vectors)
