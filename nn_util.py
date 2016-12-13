@@ -99,7 +99,9 @@ def varec(words_placeholder, lens, embedding, generation_state, summary=True):
         mu = tf.concat(1, [mu_style, mu_content])
         logvar = tf.concat(1, [logvar_style, logvar_content])
 
-        z = sampling_layer(mu, logvar)
+        z_style = sampling_layer(mu_style, logvar_style)
+        z_content = sampling_layer(mu_content, logvar_content)
+        z = tf.concat(1, [z_style, z_content])
 
     # Decoder
     with tf.variable_scope('decoder'):
@@ -126,8 +128,12 @@ def varec(words_placeholder, lens, embedding, generation_state, summary=True):
             "kld":                  mean_KLD,
             "style":                mu_style,
             "content":              mu_content,
+            "logvar_style":         logvar_style,
+            "logvar_content":       logvar_content,
             "outputs":              outputs,
             "generative_outputs":   generative_outputs,
+            "z_style":              z_style,
+            "z_content":            z_content,
             "z":                    z}
 
 def tf_eos_matrix(embedding):

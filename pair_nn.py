@@ -12,8 +12,9 @@ from constants import BATCH_SIZE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS, STYL
 from nn_util import varec
 from util import merge_dicts
 
-from nirv import pairs
+from nirv import pairs, common_pairs
 CORPUS = pairs
+COMMON_CORPUS = common_pairs
 
 import argparse
 
@@ -115,7 +116,7 @@ def train():
             for i in range(epoch_length):
                 batches = b.next_batch(BATCH_SIZE)
                 global_step = i + epoch_length * epoch
-                klw = .2
+                klw = .5
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run((train_step, total_loss, d["outputs0"], d["style0"], d["content0"], summary_op), feed_dict=_get_feed_dict(batches,klw))
                 if global_step%logging_iteration == 0:
                     summary_writer.add_summary(summary_str, global_step=global_step)
@@ -163,7 +164,11 @@ def get_hidden():
             batch1, batch2 = b.next_batch(BATCH_SIZE)
             sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
             sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
-            hidden_repr1, hidden_repr2 = sess.run((d["style0"], d["style1"]), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
+            s1, s2, c1, c2 = sess.run((d["style0"], d["style1"], d["logvar_style0"], d["logvar_style1"]), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
+            hidden_repr1 = np.concatenate((s1, c1), axis=1)
+            hidden_repr2 = np.concatenate((s2, c2), axis=1)
+            #hidden_repr1 = c1
+            #hidden_repr2 = c2
             if i == 0:
                 hidden_states1 = hidden_repr1
                 hidden_states2 = hidden_repr2
@@ -172,6 +177,47 @@ def get_hidden():
                 hidden_states2 = np.concatenate((hidden_states2, hidden_repr2), axis=0)
     return hidden_states1, hidden_states2
 
+def interpolate(k=5, use_z=True, use_content='avg'):
+    b = batch.Pairs(COMMON_CORPUS)
+    epoch_length = int(b.num_training()/BATCH_SIZE)
+    with tf.Session() as sess:
+        saver.restore(sess, CHECKPOINT_FILE)
+        for i in range(epoch_length):
+            batch1, batch2 = b.next_batch(BATCH_SIZE)
+            sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
+            sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
+            pre = 'z_' if use_z else ''
+            style1, style2, content1, content2 = sess.run((d[pre+'style0'], d[pre+'style1'], d[pre+'content0'], d[pre+'content1']), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
+            gen_output_words = [[] for _ in range(BATCH_SIZE)]
+            content_avg = (content1 + content2) / 2
+            for j in range(k+1):
+                style_interp = (1 - j/k) * style1 + (j/k) * style2
+                content_interp = (1 - j/k) * content1 + (j/k) * content2
+                if use_content == 'interp':
+                    content = content_interp
+                elif use_content == 'avg':
+                    content = content_avg
+                elif use_content == '1':
+                    content = content1
+                elif use_content == '2':
+                    content = content2
+                else:
+                    raise
+                interp = np.concatenate((style_interp, content), axis=1)
+                gen_outputs = sess.run(d['generative_outputs0'], feed_dict={generation_state:interp})
+                for n in range(BATCH_SIZE):
+                    gen_output = np.asarray(gen_outputs)[:,n,:]
+                    gen_output_words[n].append(embedding.embedding_to_sentence(gen_output))
+            for n in range(BATCH_SIZE):
+                print('orig: %s' % batch1[n])
+                for j in range(k+1):
+                    v = j / k
+                    print('%.02f: %s' % (v, gen_output_words[n][j]))
+                print('orig: %s' % batch2[n])
+                print()
+
+
 if __name__ == "__main__":
+    #interpolate()
     train()
 #print(list(map(lambda x:x.name,tf.all_variables())))
