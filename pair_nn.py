@@ -176,6 +176,47 @@ def get_hidden():
                 hidden_states2 = np.concatenate((hidden_states2, hidden_repr2), axis=0)
     return hidden_states1, hidden_states2
 
+def interpolate(k=5, use_z=True, use_content='avg'):
+    b = batch.Pairs(CORPUS)
+    epoch_length = int(b.num_training()/BATCH_SIZE)
+    with tf.Session() as sess:
+        saver.restore(sess, CHECKPOINT_FILE)
+        for i in range(epoch_length):
+            batch1, batch2 = b.next_batch(BATCH_SIZE)
+            sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
+            sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
+            pre = 'z_' if use_z else ''
+            style1, style2, content1, content2 = sess.run((d[pre+'style0'], d[pre+'style1'], d[pre+'content0'], d[pre+'content1']), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
+            gen_output_words = [[] for _ in range(BATCH_SIZE)]
+            content_avg = (content1 + content2) / 2
+            for j in range(k+1):
+                style_interp = (1 - j/k) * style1 + (j/k) * style2
+                content_interp = (1 - j/k) * content1 + (j/k) * content2
+                if use_content == 'interp':
+                    content = content_interp
+                elif use_content == 'avg':
+                    content = content_avg
+                elif use_content == '1':
+                    content = content1
+                elif use_content == '2':
+                    content = content2
+                else:
+                    raise
+                interp = np.concatenate((style_interp, content), axis=1)
+                gen_outputs = sess.run(d['generative_outputs0'], feed_dict={generation_state:interp})
+                for n in range(BATCH_SIZE):
+                    gen_output = np.asarray(gen_outputs)[:,n,:]
+                    gen_output_words[n].append(embedding.embedding_to_sentence(gen_output))
+            for n in range(BATCH_SIZE):
+                print('orig: %s' % batch1[n])
+                for j in range(k+1):
+                    v = j / k
+                    print('%.02f: %s' % (v, gen_output_words[n][j]))
+                print('orig: %s' % batch2[n])
+                print()
+
+
 if __name__ == "__main__":
+    #interpolate()
     train()
 #print(list(map(lambda x:x.name,tf.all_variables())))

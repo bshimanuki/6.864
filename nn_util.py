@@ -132,6 +132,8 @@ def varec(words_placeholder, lens, embedding, generation_state, summary=True):
             "logvar_content":       logvar_content,
             "outputs":              outputs,
             "generative_outputs":   generative_outputs,
+            "z_style":              z_style,
+            "z_content":            z_content,
             "z":                    z}
 
 def tf_eos_matrix(embedding):
