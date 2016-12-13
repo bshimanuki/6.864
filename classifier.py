@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
 from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
-from data.bible.training_data import get_corresponding_sentences_in_bible_multiple
+from data.bible.training_data import get_corresponding_sentences_in_book_multiple_by_title
 from embedder import word2vec
 from pair_nn import get_hidden
 
@@ -125,12 +125,14 @@ def check_matches(labels, predicted_labels):
     proportion_matched = num_matches / np.size(labels)
     return (num_matches, proportion_matched)
 
-def evaluate(trans1, trans2, type='unigram'):
+def evaluate_pairs(trans1, trans2, type='unigram'):
     if type == 'unigram':
         train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels = get_unigram_features(trans1, trans2)
     else:
         train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels = get_nn_features()
- 
+    process(train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels)
+
+def process(train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels):
     print("Using validation set to optimize over value of regularization parameter in logistic regression, C.")
     best_proportion_matched = 0
     C_RANGE = [0.1, 1, 10]
@@ -163,4 +165,4 @@ def evaluate(trans1, trans2, type='unigram'):
         print("Accuracy on test {}".format(accuracy_test))
 
 if __name__ == '__main__':
-    evaluate('NIRV', 'NIV', type='unigram')
+    evaluate_pairs('NIRV', 'NIV', type='unigram')

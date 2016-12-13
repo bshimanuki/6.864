@@ -136,6 +136,10 @@ def get_corresponding_sentences_in_book_multiple(book_output, translations, trim
                 corresponding_sentences.append(sents)
     return corresponding_sentences
 
+def get_corresponding_sentences_in_book_multiple_by_title(book_title, translations):
+    book_output = pickle.load(open(get_path("cache/by_book_filtered/{0}.pickle".format(book_title)), "rb"))
+    return get_corresponding_sentences_in_book_multiple(book_output, translations)
+
 def get_corresponding_sentences_in_bible_multiple(translations, trim=DEFAULT_TRIM):
     """
     Get corresponding sentences in all books of the bible for all translations.
