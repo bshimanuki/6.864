@@ -75,7 +75,10 @@ def train():
     b = batch.Single(CORPUS)
     epoch_length = b.num_training() // BATCH_SIZE
     summary_op = tf.merge_all_summaries()
-    with tf.Session() as sess:
+
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth=True
+    with tf.Session(config=config) as sess:
         if os.path.isfile(CHECKPOINT_FILE):
             print("Restoring saved parameters")
             saver.restore(sess, CHECKPOINT_FILE)

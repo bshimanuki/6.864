@@ -115,7 +115,7 @@ def train():
             for i in range(epoch_length):
                 batches = b.next_batch(BATCH_SIZE)
                 global_step = i + epoch_length * epoch
-                klw = .2
+                klw = .5
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run((train_step, total_loss, d["outputs0"], d["style0"], d["content0"], summary_op), feed_dict=_get_feed_dict(batches,klw))
                 if global_step%logging_iteration == 0:
                     summary_writer.add_summary(summary_str, global_step=global_step)
@@ -163,7 +163,11 @@ def get_hidden():
             batch1, batch2 = b.next_batch(BATCH_SIZE)
             sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
             sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
-            hidden_repr1, hidden_repr2 = sess.run((d["style0"], d["style1"]), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
+            s1, s2, c1, c2 = sess.run((d["style0"], d["style1"], d["logvar_style0"], d["logvar_style1"]), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
+            hidden_repr1 = np.concatenate((s1, c1), axis=1)
+            hidden_repr2 = np.concatenate((s2, c2), axis=1)
+            #hidden_repr1 = c1
+            #hidden_repr2 = c2
             if i == 0:
                 hidden_states1 = hidden_repr1
                 hidden_states2 = hidden_repr2
