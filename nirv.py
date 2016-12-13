@@ -28,6 +28,7 @@ short = list(" ".join(sent) for sent in filter(lambda x: len(x) <= SENT_LEN, com
 # print(len(sents), len(common), len(short))
 pairs = get_corresponding_sentences_in_bible('NIV', 'NIRV')
 pairs = list(filter(lambda x:all(map(lambda y: len(y.split()) <= MAX_GENERATION_SIZE, x)), pairs))
+common_pairs = list(filter(lambda z: all(map(lambda x: all(map(lambda y:y in word2vec and word2vec.vocab[y].count >= VOCAB_THRESH, x.split())), z)), pairs))
 sentences = list(sum(pairs, ()))
 
 """

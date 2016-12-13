@@ -12,8 +12,9 @@ from constants import BATCH_SIZE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS, STYL
 from nn_util import varec
 from util import merge_dicts
 
-from nirv import pairs
+from nirv import pairs, common_pairs
 CORPUS = pairs
+COMMON_CORPUS = common_pairs
 
 import argparse
 
@@ -177,7 +178,7 @@ def get_hidden():
     return hidden_states1, hidden_states2
 
 def interpolate(k=5, use_z=True, use_content='avg'):
-    b = batch.Pairs(CORPUS)
+    b = batch.Pairs(COMMON_CORPUS)
     epoch_length = int(b.num_training()/BATCH_SIZE)
     with tf.Session() as sess:
         saver.restore(sess, CHECKPOINT_FILE)
