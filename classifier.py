@@ -1,12 +1,15 @@
-from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
-from data.bible.training_data import get_corresponding_sentences_in_bible_multiple
-from scipy import sparse
 import numpy as np
-import tensorflow as tf
+from scipy import sparse
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+import tensorflow as tf
+
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
+from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
+from data.bible.training_data import get_corresponding_sentences_in_bible_multiple
+from embedder import word2vec
 from pair_nn import get_hidden
+
 #def get_hidden():
 #    return np.zeros((1000, 200)), np.ones((1000, 200))
 
@@ -30,12 +33,16 @@ def get_corpus(trans1, trans2):
 
     return trans_pairs, vocab
 
-def get_unigram_features(trans1, trans2):
+def get_unigram_features(trans1, trans2, use_unk=True):
     trans_pairs, vocab = get_corpus(trans1, trans2)
-    num_words = len(vocab)
     word_to_index = {}
-    for i, word in enumerate(vocab):
-        word_to_index[word] = i
+    num_words = 1
+    for word in vocab:
+        if use_unk and word not in word2vec.vocab:
+            word_to_index[word] = 0
+        else:
+            word_to_index[word] = num_words
+            num_words += 1
 
     print("Extracted vocabulary and mapping.")
 
@@ -156,4 +163,5 @@ def evaluate(trans1, trans2, type='unigram'):
         print("Accuracy on train {}".format(accuracy_train))
         print("Accuracy on test {}".format(accuracy_test))
 
-evaluate('NIRV', 'NIV', type='nn')
+if __name__ == '__main__':
+    evaluate('NIRV', 'NIV', type='unigram')
