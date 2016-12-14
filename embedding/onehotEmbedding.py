@@ -1,6 +1,6 @@
-from embedding import Embedding
 import numpy as np
-from embedder import process_sentence
+from .embedding import Embedding
+from .embedder import process_sentence
 
 class OnehotEmbedding(Embedding):
     def __init__(self, word2vec):

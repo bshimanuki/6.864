@@ -5,9 +5,9 @@ import numpy as np
 import tensorflow as tf
 
 import batch
-from embedder import word2vec
-from w2vEmbedding import W2VEmbedding
-from onehotEmbedding import OnehotEmbedding
+from embedding.embedder import word2vec
+from embedding.w2vEmbedding import W2VEmbedding
+from embedding.onehotEmbedding import OnehotEmbedding
 from constants import BATCH_SIZE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS, STYLE_FRACTION
 from nn_util import varec
 from util import merge_dicts
@@ -56,12 +56,12 @@ with tf.name_scope('loss_overall'):
     content_penalty = tf.reduce_mean(tf.square(d["content0"]-d["content1"])) +\
         tf.reduce_mean(tf.square(d["content2"]-d["content3"]))
     style_penalty = tf.reduce_mean(tf.square(d["style0"]-d["style2"])) +\
-        tf.reduce_mean(tf.square(d["style1"]-d["style3"])) -\
-        tf.reduce_mean(tf.abs(d["style0"]-d["style1"])) -\
-        tf.reduce_mean(tf.abs(d["style2"]-d["style3"]))
+        tf.reduce_mean(tf.square(d["style1"]-d["style3"]))# -\
+#        tf.reduce_mean(tf.abs(d["style0"]-d["style1"])) -\
+#        tf.reduce_mean(tf.abs(d["style2"]-d["style3"]))
     z_penalty = content_penalty
     z_penalty = (1-STYLE_FRACTION)*content_penalty + STYLE_FRACTION*style_penalty
-    total_loss += 10*z_penalty
+    total_loss += 20*z_penalty
 
     tf.scalar_summary('Total KLD', total_kld)
     tf.scalar_summary('Total NLL', total_nll)
@@ -101,7 +101,9 @@ def train():
     b = batch.Quads(CORPUS)
     epoch_length = b.num_training() // BATCH_SIZE
     summary_op = tf.merge_all_summaries()
-    with tf.Session() as sess:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth=True
+    with tf.Session(config=config) as sess:
         if os.path.isfile(CHECKPOINT_FILE):
             print("Restoring saved parameters")
             saver.restore(sess, CHECKPOINT_FILE)
@@ -116,7 +118,7 @@ def train():
             for i in range(epoch_length):
                 batches = b.next_batch(BATCH_SIZE)
                 global_step = i + epoch_length * epoch
-                klw = .5
+                klw = .2
                 _, los, _outputs, _mu_style, _mu_content, summary_str = sess.run((train_step, total_loss, d["outputs0"], d["style0"], d["content0"], summary_op), feed_dict=_get_feed_dict(batches,klw))
                 if global_step%logging_iteration == 0:
                     summary_writer.add_summary(summary_str, global_step=global_step)

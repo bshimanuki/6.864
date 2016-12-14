@@ -1,6 +1,6 @@
 import abc
 
-from embedder import EOS
+from .embedder import EOS
 
 class Embedding:
     __metaclass__ = abc.ABCMeta

@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from constants import BATCH_SIZE, MAX_GENERATION_SIZE, STYLE_FRACTION
-import embedder
+from embedding import embedder
 
 
 def weight_variable(shape, name, summary):

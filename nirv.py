@@ -1,7 +1,7 @@
 from collections import Counter
 
 from data.bible.training_data import read_bible, get_corresponding_sentences_in_bible
-from embedder import word2vec
+from embedding.embedder import word2vec
 from constants import MAX_GENERATION_SIZE
 
 nirv = list(read_bible(translations=['NIRV']).values())

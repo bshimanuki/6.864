@@ -5,9 +5,9 @@ import numpy as np
 import tensorflow as tf
 
 import batch
-from embedder import word2vec
-from w2vEmbedding import W2VEmbedding
-from onehotEmbedding import OnehotEmbedding
+from embedding.embedder import word2vec
+from embedding.w2vEmbedding import W2VEmbedding
+from embedding.onehotEmbedding import OnehotEmbedding
 from constants import BATCH_SIZE, KL_PARAM, KL_TRANSLATE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS
 from nn_util import varec
 from util import sigmoid

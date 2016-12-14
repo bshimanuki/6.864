@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from constants import TRAIN_RATIO, VALIDATION_RATIO, TEST_RATIO, RANDOM_SEED
 from data.bible.training_data import get_corresponding_sentences_in_bible as get_pairs
 from data.bible.training_data import get_corresponding_sentences_in_book_multiple_by_title
-from embedder import word2vec
+from embedding.embedder import word2vec
 from pair_nn import get_hidden
 
 #def get_hidden():
@@ -166,4 +166,4 @@ def process(train_feature_vectors, validation_feature_vectors, train_val_feature
         print("Accuracy on test {}".format(accuracy_test))
 
 if __name__ == '__main__':
-    evaluate_pairs('NIRV', 'NIV', type='unigram')
+    evaluate_pairs('NKJV', 'NIV', type='nn')
