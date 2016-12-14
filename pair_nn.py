@@ -144,39 +144,30 @@ def train():
                 saver.save(sess, CHECKPOINT_FILE)
 
 
-def test():
-    b = batch.Pairs(CORPUS)
-    with tf.Session() as sess:
-        saver.restore(sess, CHECKPOINT_FILE)
-        bat = b.next_batch(BATCH_SIZE)
-        print(bat[0])
-        for i in range(1):
-            sentences, lengths = embedding.word_indices(bat, eos=True)
-            output, los = sess.run((outputs, total_loss), feed_dict={words:sentences, lens:lengths, kl_weight:0})
-        one_sentence = output[0]
-        word_sequence = embedding.embedding_to_sentence(output[0])
-        print(word_sequence)
-
-def get_hidden():
+def get_hidden(attribute_list):
     b = batch.Pairs(CORPUS)
     epoch_length = int(b.num_training()/BATCH_SIZE)
+    hidden_representations1 = []
+    hidden_representations2 = []
     with tf.Session() as sess:
         saver.restore(sess, CHECKPOINT_FILE)
         for i in range(epoch_length):
             batch1, batch2 = b.next_batch(BATCH_SIZE)
             sentences1, lengths1 = embedding.word_indices(batch1, eos=True)
             sentences2, lengths2 = embedding.word_indices(batch2, eos=True)
-            s1, s2, c1, c2 = sess.run((d["style0"], d["style1"], d["logvar_style0"], d["logvar_style1"]), feed_dict={sents[0]:sentences1, lens[0]:lengths1, sents[1]:sentences2, lens[1]:lengths2, kl_weight:0})
-            hidden_repr1 = np.concatenate((s1, c1), axis=1)
-            hidden_repr2 = np.concatenate((s2, c2), axis=1)
-            #hidden_repr1 = c1
-            #hidden_repr2 = c2
-            if i == 0:
-                hidden_states1 = hidden_repr1
-                hidden_states2 = hidden_repr2
-            else:
-                hidden_states1 = np.concatenate((hidden_states1, hidden_repr1), axis=0)
-                hidden_states2 = np.concatenate((hidden_states2, hidden_repr2), axis=0)
+            attr_tuple1, attr_tuple2 = sess.run(
+                    (tuple([d[attr+"0"] for attr in attribute_list]),
+                     tuple([d[attr+"1"] for attr in attribute_list])),
+                     feed_dict={
+                         sents[0]:sentences1,
+                         lens[0]:lengths1,
+                         sents[1]:sentences2,
+                         lens[1]:lengths2,
+                         kl_weight:0})
+            hidden_representations1.append(np.concatenate(attr_tuple1, axis=1))
+            hidden_representations2.append(np.concatenate(attr_tuple2, axis=1))
+    hidden_states1 = np.concatenate(hidden_representations1, axis=0)
+    hidden_states2 = np.concatenate(hidden_representations2, axis=0)
     return hidden_states1, hidden_states2
 
 def interpolate(k=5, use_z=True, use_content='avg'):

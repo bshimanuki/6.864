@@ -10,9 +10,6 @@ from data.bible.training_data import get_corresponding_sentences_in_book_multipl
 from embedding.embedder import word2vec
 from pair_nn import get_hidden
 
-#def get_hidden():
-#    return np.zeros((1000, 200)), np.ones((1000, 200))
-
 # WYC-WEB 0.97 accuracy
 #trans_pairs = get_pairs('WYC', 'WEB')
 
@@ -20,6 +17,13 @@ from pair_nn import get_hidden
 # trans_pairs = get_pairs('ASV', 'CEB')
 
 # trans_pairs = get_corresponding_sentences_in_bible_multiple(['ASV', 'CEB', 'WYC', 'WEB'])
+use_svm = False
+
+def _get_classifier(c):
+    if use_svm:
+        return SVC(C=c, kernel='rbf')
+    else:
+        return LogisticRegression(C=c)
 
 def get_corpus(trans1, trans2):
     vocab = set()
@@ -84,7 +88,7 @@ def get_unigram_features(trans1, trans2, use_unk=True):
     return train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels
 
 def get_nn_features():
-    features1, features2 = get_hidden()
+    features1, features2 = get_hidden(["style", "logvar_style"])
     num_sents, num_feats = features1.shape
     labels = np.concatenate((np.array([0]*num_sents), np.array([1]*num_sents)), axis=0)
     features = np.concatenate((features1, features2), axis=0)
@@ -144,7 +148,7 @@ def process(train_feature_vectors, validation_feature_vectors, train_val_feature
         C_RANGE = [1e-5, 1e-4, 1e-3, 0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5]
         """
         print("\tCurrent C: {}".format(C_cur))
-        classifier = SVC(C=C_cur, kernel='rbf')
+        classifier = _get_classifier(C_cur)
         classifier.fit(train_feature_vectors, train_labels)
         predicted_validation_labels = classifier.predict(validation_feature_vectors)
         (num_matches, proportion_matched) = check_matches(validation_labels, predicted_validation_labels)
@@ -156,7 +160,7 @@ def process(train_feature_vectors, validation_feature_vectors, train_val_feature
 
         print("Done training and validating. Best C found: {}, Best accuracy on validation: {}".format(best_C, best_proportion_matched))
 
-        classifier = SVC(C=best_C, kernel='rbf')
+        classifier = _get_classifier(best_C)
         classifier.fit(train_val_feature_vectors, train_val_labels)
         predicted_train_labels = classifier.predict(train_feature_vectors)
         predicted_test_labels = classifier.predict(test_feature_vectors)
