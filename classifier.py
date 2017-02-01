@@ -132,13 +132,13 @@ def check_matches(labels, predicted_labels):
 
 def evaluate_pairs(trans1, trans2, type='unigram'):
     if type == 'unigram':
-        train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels = get_unigram_features(trans1, trans2)
+        process_inputs = get_unigram_features(trans1, trans2)
     else:
-        train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels = get_nn_features()
-    process(train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels)
+        process_inputs = get_nn_features()
+    process(*process_inputs)
 
 def process(train_feature_vectors, validation_feature_vectors, train_val_feature_vectors, test_feature_vectors, train_labels, validation_labels, train_val_labels, test_labels):
-    print("Using validation set to optimize over value of regularization parameter in logistic regression, C.")
+    print("Using validation set to optimize over value of regularization parameter in regression, C.")
     best_proportion_matched = 0
     C_RANGE = [0.1, 1, 10]
     for C_cur in C_RANGE:
@@ -160,14 +160,14 @@ def process(train_feature_vectors, validation_feature_vectors, train_val_feature
 
         print("Done training and validating. Best C found: {}, Best accuracy on validation: {}".format(best_C, best_proportion_matched))
 
-        classifier = _get_classifier(best_C)
-        classifier.fit(train_val_feature_vectors, train_val_labels)
-        predicted_train_labels = classifier.predict(train_feature_vectors)
-        predicted_test_labels = classifier.predict(test_feature_vectors)
-        (num_matches_train, accuracy_train) = check_matches(train_labels, predicted_train_labels)
-        (num_matches_test, accuracy_test) = check_matches(test_labels, predicted_test_labels)
-        print("Accuracy on train {}".format(accuracy_train))
-        print("Accuracy on test {}".format(accuracy_test))
+    classifier = _get_classifier(best_C)
+    classifier.fit(train_val_feature_vectors, train_val_labels)
+    predicted_train_labels = classifier.predict(train_feature_vectors)
+    predicted_test_labels = classifier.predict(test_feature_vectors)
+    (num_matches_train, accuracy_train) = check_matches(train_labels, predicted_train_labels)
+    (num_matches_test, accuracy_test) = check_matches(test_labels, predicted_test_labels)
+    print("Accuracy on train {}".format(accuracy_train))
+    print("Accuracy on test {}".format(accuracy_test))
 
 if __name__ == '__main__':
-    evaluate_pairs('NKJV', 'NIV', type='nn')
+    evaluate_pairs('NIV', 'NIRV', type='nn')

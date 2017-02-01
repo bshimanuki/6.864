@@ -11,6 +11,7 @@ from embedding.onehotEmbedding import OnehotEmbedding
 from constants import BATCH_SIZE, CHECKPOINT_FILE, TB_LOGS_DIR, NUM_EPOCHS, STYLE_FRACTION
 from nn_util import varec
 from util import merge_dicts
+from data.bible.training_data import read_bible
 
 from nirv import pairs, common_pairs
 CORPUS = pairs
@@ -56,9 +57,9 @@ with tf.name_scope('loss_overall'):
     content_penalty = tf.reduce_mean(tf.square(d["content0"]-d["content1"])) +\
         tf.reduce_mean(tf.square(d["content2"]-d["content3"]))
     style_penalty = tf.reduce_mean(tf.square(d["style0"]-d["style2"])) +\
-        tf.reduce_mean(tf.square(d["style1"]-d["style3"]))# -\
-#        tf.reduce_mean(tf.abs(d["style0"]-d["style1"])) -\
-#        tf.reduce_mean(tf.abs(d["style2"]-d["style3"]))
+        tf.reduce_mean(tf.square(d["style1"]-d["style3"])) -\
+        tf.reduce_mean(tf.abs(d["style0"]-d["style1"])) -\
+        tf.reduce_mean(tf.abs(d["style2"]-d["style3"]))
     z_penalty = content_penalty
     z_penalty = (1-STYLE_FRACTION)*content_penalty + STYLE_FRACTION*style_penalty
     total_loss += 20*z_penalty
