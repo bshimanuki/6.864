@@ -4,6 +4,7 @@
 word2vec.pickle
 
 *.pyc
+*.npz
 
 *.pdf
 
